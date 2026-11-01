@@ -104,13 +104,13 @@ tempo/
 
 ## 8. Ecosystem contract (what later projects rely on)
 
-- `@<scope>/tempo-core` public API: `evaluate`, `suggest`, `explain`, types, Zod schemas.
+- `@marvinliem/tempo-core` public API: `evaluate`, `suggest`, `explain`, types, Zod schemas.
 - **Semver strictly.** Deskhand pins a major version.
-- The edge-case catalogue in TEST_PLAN.md is **exported as fixtures** (`@<scope>/tempo-core/fixtures`). Deskbench seeds scenarios from it.
+- The edge-case catalogue in TEST_PLAN.md is **exported as fixtures** (`@marvinliem/tempo-core/fixtures`). Deskbench seeds scenarios from it.
 
 ## 9. Risks & assumptions (flagged)
 
-- ⚠️ **Package name:** `tempo` is almost certainly taken on npm → plan for a scoped name (`@<npm-username>/tempo`, `@<scope>/tempo-cli`). The binary can still be `tempo`.
+- ⚠️ **Package name:** `tempo` is almost certainly taken on npm → plan for a scoped name (`@marvinliem/tempo`, `@marvinliem/tempo-cli`). The binary can still be `tempo`.
 - ⚠️ **Node version:** you have Node 24.x locally. Node 26 became Active LTS in Oct 2026. Decide: support `>=24` and test 24 + 26 in CI (recommended).
 - ⚠️ Overnight-shift weekday ownership is a product decision. Ask before choosing.
 - ⚠️ Assumes 2 parties and a single contiguous meeting.

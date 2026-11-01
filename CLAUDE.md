@@ -7,7 +7,9 @@ Tempo is a TypeScript library + CLI that decides whether a meeting request fits 
 **PLANNING. Do not write implementation code or scaffold packages until I approve the docs.**
 When I approve, I'll change this line to `IMPLEMENTATION — milestone N`.
 
-## How we work (Superpowers)
+## Project Guidelines
+
+### How we work (Superpowers)
 
 - Use the Superpowers skills if installed: `brainstorming` → `writing-plans` → `test-driven-development` → `subagent-driven-development` / `executing-plans` → `requesting-code-review` → `verification-before-completion` → `finishing-a-development-branch`.
 - If they aren't installed, follow the same discipline by hand: spec → plan → failing test → minimal code → refactor.
@@ -30,17 +32,22 @@ skills/tempo/   SKILL.md for Claude Code
 docs/           SPEC, ARCHITECTURE, adr/, TEST_PLAN, ROADMAP, ASSUMPTIONS
 ```
 
-## Commands (planned; update once scaffolded)
+## Build command (planned; update once scaffolded)
 
 ```
 pnpm install
 pnpm build          # all packages
+pnpm gen:schema     # zod -> schema/rules.schema.json
+pnpm --filter cli dev -- explain --request examples/req.json --parties examples/parties.json
+```
+
+## Test command
+
+```
 pnpm test           # vitest (unit + property)
 pnpm test:watch
 pnpm typecheck
 pnpm lint
-pnpm gen:schema     # zod -> schema/rules.schema.json
-pnpm --filter cli dev -- explain --request examples/req.json --parties examples/parties.json
 ```
 
 ## Hard rules for `packages/core`
@@ -76,4 +83,4 @@ pnpm --filter cli dev -- explain --request examples/req.json --parties examples/
 
 ## Downstream contract
 
-`@<scope>/tempo-core` is imported by Deskhand MCP. Breaking API changes need a major bump, a CHANGELOG entry and a migration note.
+`@marvinliem/tempo-core` is imported by Deskhand MCP. Breaking API changes need a major bump, a CHANGELOG entry and a migration note.
