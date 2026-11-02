@@ -1,6 +1,6 @@
 # Tempo — ARCHITECTURE.md
 
-> **Status:** PLANNING — awaiting approval. No scaffolding or implementation until `CLAUDE.md` says `IMPLEMENTATION — milestone N`.
+> **Status:** APPROVED (planning round 3). Implementation proceeds per `ROADMAP.md`; `CLAUDE.md` says `IMPLEMENTATION — milestone 1`.
 > **Precedence:** `DECISIONS.md` is the source of truth; this file is wrong wherever it disagrees. Assumptions are `A-nn` in [`ASSUMPTIONS.md`](./ASSUMPTIONS.md).
 
 ---
@@ -58,7 +58,7 @@ ADRs are kept in §4 of this file for now (A-19). Test files sit beside the code
 
 ### Existing code
 
-`packages/*/src` was written before approval and does not build. It is **not** repaired: Milestone 1 deletes `packages/*/src` and restarts test-first. It remains in git history at `5f8ae8c`. The current root `package.json` (`@tempo/*` filters, `pnpm@9.12.3`, `node >=20`, a `test` script that passes `--passWithNoTests` to pnpm) is replaced in M1; `--passWithNoTests` belongs on the `vitest run` call inside the package scripts, not on the pnpm invocation.
+`packages/*/src` was written before approval and does not build. It is **not** repaired: Milestone 1 deletes `packages/*/src` and restarts test-first. It remains in git history at `5f8ae8c`. The current root `package.json` (`@tempo/*` filters, `pnpm@9.12.3`, `node >=20`; G29 replaces the pins with `pnpm@12.15.x` and `node >=24`; a `test` script that passes `--passWithNoTests` to pnpm) is replaced in M1; `--passWithNoTests` belongs on the `vitest run` call inside the package scripts, not on the pnpm invocation.
 
 ## 2. Package boundary
 
@@ -112,13 +112,13 @@ Function names are assumption A-03; the `needs_clarification` decision of earlie
 ### ADR 4 — DST policy (C10)
 
 **Decision:** For the **request’s** wall times (`start`, `end`): a **nonexistent** time (spring-forward gap) and an **ambiguous** time (fall-back overlap) are **both rejected** with an explicit code (`DST_NONEXISTENT_LOCAL_TIME`, `DST_AMBIGUOUS_LOCAL_TIME`), CLI exit 2 (A-05). Detection is a Luxon round-trip check, plus a probe of the neighbouring offset for the overlap.
-For **availability-rule boundaries** (A-07, needs approval): gap → forward, overlap → earlier occurrence, with an informational `DST_RULE_ADJUSTED` reason when it touches the request.
+For **availability-rule boundaries** (A-07, approved as G28): gap → forward, overlap → earlier occurrence, with an informational `DST_RULE_ADJUSTED` reason when it touches the request.
 **Why:** “Never guess.” Silent shifting is the bug class Tempo exists to prevent.
 **Consequences:** Callers resubmit with an unambiguous time. `details` contains everything needed (transition instant, both candidate instants). Fixtures cover US, EU, Australia/Sydney, Australia/Lord_Howe, and Asia/Manila (no DST), plus wrap-across-transition.
 
 ### ADR 5 — Interval algebra and ranking (C5, C6, C9)
 
-**Decision:** Expand weekly rules to absolute UTC intervals owned by their start day; remove instances owned by a party’s blackout dates; merge touching/overlapping instances; “available” means contained in one merged interval. Counter-offers: absolute-distance ranking from the requested start on a 15-minute lattice (defaults), ties → earlier first, ≤ `maxSuggestions`.
+**Decision:** Expand weekly rules to absolute UTC intervals owned by their start day; remove instances owned by a party’s blackout dates; merge touching/overlapping instances; “available” means contained in one merged interval. Counter-offers: absolute-distance ranking from the requested start on a 15-minute lattice (defaults), ties → earlier first, then greedy selection that skips any candidate overlapping an already-picked slot (G22), ≤ `maxSuggestions`.
 **Why:** One interval algebra on UTC removes the whole class of “which day is this overnight shift” and DST bugs, and is easy to cross-check with an independent minute-by-minute oracle (E17).
 **Consequences:** See SPEC §4 for exact semantics.
 
@@ -129,7 +129,7 @@ For **availability-rule boundaries** (A-07, needs approval): gap → forward, ov
 
 ### ADR 7 — CLI exit codes (D14)
 
-**Decision:** Exit `0` whenever the computation succeeds. `--exit-code` maps `book` → `0`, `counter_offer` → `1`. Errors are always `2` (input) or `3` (ambiguous zone); `4` = internal error (A-12, needs approval).
+**Decision:** Exit `0` whenever the computation succeeds. `--exit-code` maps `book` → `0`, `counter_offer` → `1`. Errors are always `2` (input) or `3` (ambiguous zone); `4` = internal error (G24).
 **Why:** Separates “the tool worked” from “the answer was no”, which suits agents and shell pipelines alike. **Exit codes and JSON output shape are public API.**
 
 ### ADR 8 — `explain` (D15)

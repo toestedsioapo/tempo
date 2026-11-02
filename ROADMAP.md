@@ -1,6 +1,6 @@
 # Tempo — ROADMAP.md
 
-> **Status:** PLANNING — awaiting approval. I will not scaffold or write code until `CLAUDE.md` says `IMPLEMENTATION — milestone N`.
+> **Status:** APPROVED (planning round 3). `CLAUDE.md` says `IMPLEMENTATION — milestone 1`; each milestone is executed from its own plan in `docs/plans/` only after I say “go”.
 > **Precedence:** `DECISIONS.md` is the source of truth. Assumptions: `A-nn` in [`ASSUMPTIONS.md`](./ASSUMPTIONS.md). Test IDs: [`TEST_PLAN.md`](./TEST_PLAN.md).
 
 ## Overview
@@ -36,9 +36,9 @@ Six milestones over about six weeks, ending in the **first release, `v0.1.0`** o
 
 1. **Delete `packages/*/src`.** That code was written before approval and does not build; it is not repaired. It stays in git history at `5f8ae8c`. Also review the stray root files `verify_types.ts` and `tsconfig.verify.json`.
 2. **Name gate (F20):** `pnpm check:names` verifies that `@marvinliem/tempo-core` and `@marvinliem/tempo` are available (or owned) on npm. If not, stop and ask for new names before going further.
-3. **Root configuration** replacing the current one: `package.json` (private; version reset, A-20; `packageManager: pnpm@12.x`, A-21; `engines.node >=24`; scripts `build`, `typecheck`, `lint`, `test`, `test:watch`, `gen:schema`, `check:names`, all cross-platform with `rimraf`/`cross-env`). Note the current root `test` script passes `--passWithNoTests` to pnpm, which is wrong: that flag goes on the `vitest run` call inside each package script until real tests exist. `pnpm-workspace.yaml` with `packages: ['packages/*']`. Shared `tsconfig` (strict, `noUncheckedIndexedAccess`, ESM, `NodeNext`). ESLint including the purity rules. changesets. MIT licence. `.npmrc` (`engine-strict=true`, no secrets).
+3. **Root configuration** replacing the current one: `package.json` (private; version reset, A-20; `packageManager: pnpm@12.15.x`, G29; `engines.node >=24`; scripts `build`, `typecheck`, `lint`, `test`, `test:watch`, `gen:schema`, `check:names`, all cross-platform with `rimraf`/`cross-env`). Note the current root `test` script passes `--passWithNoTests` to pnpm, which is wrong: that flag goes on the `vitest run` call inside each package script until real tests exist. `pnpm-workspace.yaml` with `packages: ['packages/*']`. Shared `tsconfig` (strict, `noUncheckedIndexedAccess`, ESM, `NodeNext`). ESLint including the purity rules. changesets. MIT licence. `.npmrc` (`engine-strict=true`, no secrets).
 4. **Package scaffolds:** `@marvinliem/tempo-core` and `@marvinliem/tempo` (bin `tempo`), both `0.1.0`, ESM with `exports`.
-5. **Types and Zod schemas, test-first:** CORE-01 … CORE-07 and CORE-41; `pnpm gen:schema` produces `schema/rules.schema.json`; Zod major version chosen here (A-22).
+5. **Types and Zod schemas, test-first:** CORE-01 … CORE-07, CORE-41 and CORE-42 (request `start == end`, G23); `pnpm gen:schema` produces `schema/rules.schema.json`; Zod major version chosen here (A-22).
 6. **CI workflow:** Node 24 and 26 × ubuntu-latest and windows-latest; frozen-lockfile install, typecheck, lint, test, build.
 7. **Repo checks:** CFG-01 … CFG-08, CFG-10, CFG-11 (CFG-09 comes with `SKILL.md`).
 8. Housekeeping from A-19: decide whether planning docs move into `docs/` (ADRs stay inside ARCHITECTURE.md unless asked).
@@ -63,10 +63,10 @@ Six milestones over about six weeks, ending in the **first release, `v0.1.0`** o
 
 * Zone validation before Luxon with the SPEC §7 table (C11): CORE-08 … CORE-11.
 * Availability instances, overnight wrap with start-day ownership, `24:00`, `start == end` rejection (C5); blackouts in the party’s zone (C6); merge; closed containment: CORE-12 … CORE-21.
-* Request interval incl. `end <= start` (C7); time gates `IN_PAST`, `INSUFFICIENT_NOTICE` (C8): CORE-22, CORE-23.
+* Request interval incl. `end < start` ⇒ next day (C7); `start == end` is already rejected by the M1 schema (G23); time gates `IN_PAST`, `INSUFFICIENT_NOTICE` (C8): CORE-22, CORE-23.
 * `evaluate()` returning the decision and reasons. For a `counter_offer`, `slots` is not computed yet; the examples that need ranked slots are marked `todo` until M2b.
 * Oracle ORC-01 (decision only) and ORC-02.
-* Worked examples fully passing in M2a: **EX-01, EX-03, EX-05, EX-07, EX-08, EX-09, EX-14, EX-15, EX-23**. Decision-and-reason assertions only for the rest.
+* Worked examples fully passing in M2a: **EX-01, EX-03, EX-05, EX-07, EX-08, EX-09, EX-10, EX-14, EX-15, EX-23**. Decision-and-reason assertions only for the rest.
 
 **Definition of done**
 
@@ -84,7 +84,7 @@ Six milestones over about six weeks, ending in the **first release, `v0.1.0`** o
 
 * Wall-time classification and the C10 rejection with exact `details`: CORE-35 … CORE-39 (US, EU, Sydney, Lord_Howe, Manila).
 * Rule-boundary policy and `DST_RULE_ADJUSTED` (A-07): CORE-38.
-* Counter-offer search on the lattice, ranking, tie-break, `NO_SLOTS_IN_HORIZON` (C9): CORE-24 … CORE-34.
+* Counter-offer search on the lattice, ranking, tie-break, greedy non-overlapping selection (G22), `NO_SLOTS_IN_HORIZON` (C9): CORE-24 … CORE-34, CORE-43.
 * `suggest()` and `explain()` (D15).
 * All property invariants INV-01 … INV-13 with the generators G-01 … G-05 (E18); the full differential oracle ORC-01 incl. slots.
 * **All 24 worked examples pass** with byte-exact output.
@@ -108,7 +108,7 @@ Six milestones over about six weeks, ending in the **first release, `v0.1.0`** o
 
 * Argument parsing; input from file, stdin or `-`; UTF-8 with BOM stripped (CLI-11, CLI-12).
 * `--json`, `--exit-code`, `--now <ISO>`, `--help`, `--version`; `--now` > `options.now` > the real clock, which only `clock.ts` reads (CLI-10).
-* **Exit codes (D14):** `0` whenever the computation succeeds; with `--exit-code`, `counter_offer` → `1` (and `book` → `0`); `2` input error (including DST errors); `3` ambiguous zone; `4` internal error (A-12, pending approval). *This replaces the earlier M3 text “0 = book, 1 = counter_offer, 2 = input error, 3 = ambiguous timezone”, which contradicted D14.*
+* **Exit codes (D14):** `0` whenever the computation succeeds; with `--exit-code`, `counter_offer` → `1` (and `book` → `0`); `2` input error (including DST errors); `3` ambiguous zone; `4` internal error (G24). *This replaces the earlier M3 text “0 = book, 1 = counter_offer, 2 = input error, 3 = ambiguous timezone”, which contradicted D14.*
 * Human-readable output by default; JSON shapes exactly as in the SPEC (CLI-01 … CLI-19).
 * Never prompts on a TTY (CLI-13).
 

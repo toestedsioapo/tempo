@@ -1,8 +1,10 @@
 # PLAN — Tempo (Project 1 of 4)
 
-> A TypeScript library + CLI that decides whether a meeting request fits two people's working hours (including overnight shifts and DST). If it doesn't fit, it returns ranked counter-offers with reasons.
+> A TypeScript library + CLI that decides whether a meeting request fits everyone's working hours (two or more people, including overnight shifts and DST). If it doesn't fit, it returns ranked, non-overlapping counter-offers with reasons.
 
-**Timebox:** ~5–6 weeks · **Process:** Superpowers (spec-first, TDD, subagent-driven) · **Status:** Planning — no code until approved
+**Timebox:** ~6 weeks · **Process:** Superpowers (spec-first, TDD, subagent-driven) · **Status:** Planning approved (round 3) — implementation, milestone 1
+
+> `DECISIONS.md` is the source of truth, then `SPEC.md`. This file is the overview; where it disagrees with them, it is wrong.
 
 ---
 
@@ -15,33 +17,37 @@ Tempo turns the code step of my working n8n **Meeting Scheduler** into a tested,
 
 ## 2. Goals
 
-1. **Pure, deterministic core.** `evaluate(request, parties, options) → { decision: "book" | "counter_offer" | "needs_clarification", reasons[], slots[] }`. No network, no clock, no fs, no env inside `core`. `now` is injected.
-2. **Correct DST handling** with IANA zones, including **ambiguous** (fall-back) and **nonexistent** (spring-forward) local times, with an explicit, documented policy.
-3. **Ambiguous abbreviations policy:** `IST`, `CST`, `BST`, etc. → *ask, don't guess* (`needs_clarification` with candidate zones).
+1. **Pure, deterministic core.** `evaluate({ request, participants, options })` returns `{ ok: true, decision: "book" | "counter_offer", requested, slots[], reasons[] }` or `{ ok: false, error }`. No network, no clock, no fs, no env inside `core`. `now` is injected. Core never throws.
+2. **Correct DST handling** with IANA zones. A request time that is **nonexistent** (spring-forward) or **ambiguous** (fall-back) is rejected with an explicit error and details; availability-rule boundaries follow a documented policy and emit a reason.
+3. **Ambiguous abbreviations policy:** `IST`, `CST`, `BST`, etc. → *ask, don't guess*: an `AMBIGUOUS_ZONE` error with the candidate zones (CLI exit 3).
 4. **CLI:** `tempo check`, `tempo suggest`, `tempo explain`. JSON in/out, stable exit codes.
 5. **Rules schema:** JSON Schema generated from Zod, published with the package.
-6. **Agent-ready:** a bundled Claude Code `SKILL.md` so agents can drive the CLI.
+6. **Agent-ready:** a bundled, tool-agnostic `SKILL.md` (at the repo root) so agents can drive the CLI.
 
-## 3. Non-goals (v1)
+## 3. Non-goals (v0.1.0)
 
 - No calendar API access (that's Deskhand MCP).
 - No natural-language parsing of emails (the caller/LLM extracts fields).
-- No more than 2 parties in v1 (design the types so N-party is a later, non-breaking addition — **flag in ADR**).
-- No recurring-meeting expansion.
+- No recurring-meeting expansion; a single contiguous meeting.
+- No blackout date ranges (callers expand them) and no per-party minimum notice.
 - No GUI.
 
-## 4. Domain model (draft — confirm in SPEC.md)
+(N participants, minimum 2, are **in** scope since D13.)
+
+## 4. Domain model (normative version: SPEC §3)
 
 | Concept | Shape (sketch) |
 |---|---|
-| `MeetingRequest` | `{ date: "YYYY-MM-DD", start: "HH:mm", end: "HH:mm", zone: IANA \| abbreviation }` |
-| `Party` | `{ id, zone: IANA, rules: WorkingRule[], blackouts: DateRange[] }` |
-| `WorkingRule` | `{ weekdays: (1..7)[], start: "HH:mm", end: "HH:mm" }`. `end < start` means **overnight wrap** |
-| `Options` | `{ now: ISO, horizonDays, slotStepMinutes, maxSuggestions (default 3), dstPolicy }` |
-| `Result` | `{ decision, reasons: Reason[], slots: Slot[] }`, each `Slot` expressed in **requester zone + each party's zone + UTC** |
-| `Reason` | machine code (`OUTSIDE_WINDOW`, `IN_BLACKOUT`, `DST_NONEXISTENT`, `DST_AMBIGUOUS`, `AMBIGUOUS_ZONE`, `IN_PAST` …) + human message |
+| `NegotiationRequest` | `{ request, participants: PartyRules[], options }` |
+| `MeetingRequest` | `{ date: "YYYY-MM-DD", start: "HH:mm", end: "HH:mm", timeZone: IANA }`; `end < start` ends the next day; `end == start` is invalid |
+| `PartyRules` | `{ partyId, timeZone: IANA, weeklyRules: { monday?: Interval[], … }, blackouts?: "YYYY-MM-DD"[] }` |
+| `Interval` | `{ start: "HH:mm", end: "HH:mm" \| "24:00" }`. `end < start` means **overnight wrap**; `end == start` is invalid |
+| `Options` | `{ now: UTC ISO string, minNoticeMinutes?, searchHorizonDays?, searchStepMinutes?, maxSuggestions? }` |
+| `NegotiationResult` | `{ ok: true, decision, requested, slots: IsoSlot[], reasons: Reason[] }` or `{ ok: false, error: { code, message, details? } }` |
+| `IsoSlot` | `{ start, end }` in the requester zone with numeric offset, plus `startUtc`, `endUtc` |
+| `Reason` | `{ code, participantId?, message }`: `IN_PAST`, `INSUFFICIENT_NOTICE`, `OUTSIDE_AVAILABILITY`, `IN_BLACKOUT`, `NO_SLOTS_IN_HORIZON`, `DST_RULE_ADJUSTED` |
 
-**Key subtlety:** an overnight rule `Mon 20:00–06:00` belongs to the *Monday* shift but ends Tuesday morning. SPEC must define which weekday "owns" the shift.
+**Key subtlety (resolved, C5):** an overnight rule `Mon 20:00–06:00` is owned by the day it **starts**, Monday, though it ends Tuesday morning.
 
 ## 5. Architecture (target)
 
@@ -51,78 +57,82 @@ tempo/
 │  ├─ core/        # pure engine: types, zod schemas, evaluate(), suggest(), explain()
 │  └─ cli/         # thin wrapper: arg parsing, io, exit codes; injects real clock
 ├─ schema/         # generated rules.schema.json (do not hand-edit)
-├─ skills/tempo/SKILL.md
-├─ docs/ (SPEC.md, ARCHITECTURE.md, TEST_PLAN.md, ROADMAP.md, adr/)
+├─ SKILL.md        # tool-agnostic agent skill (D16)
+├─ docs/plans/     # milestone plans
+├─ SPEC.md, ARCHITECTURE.md, TEST_PLAN.md, ROADMAP.md, DECISIONS.md, ASSUMPTIONS.md
 └─ .github/workflows/ (ci.yml, release.yml)
 ```
 
-### ADRs to write
+### ADRs (written in `ARCHITECTURE.md`)
 
-1. **Luxon vs Temporal.** Luxon is the stated choice. Re-check Temporal's status in current Node LTS before locking (assumption: still not safe to rely on unflagged in all target runtimes).
-2. **Zone-abbreviation policy.** Accept IANA always. Accept unambiguous abbreviations only from an allow-list. Anything else → `needs_clarification`.
-3. **Injecting "now".** `now` is a required option in core; the CLI supplies `DateTime.now()`; tests supply fixed instants.
-4. **DST policy.** Nonexistent local time → shift forward / reject (configurable, default reject with reason). Ambiguous → earlier offset by default + reason.
-5. **Suggestion ranking.** For example: closest to the requested time, then earliest, then least "edge of window". Deterministic tie-breaks.
+1. **Luxon vs Temporal.** Luxon (C12).
+2. **Zone-abbreviation policy.** Accept IANA always, plus `UTC` and `GMT`. Abbreviations in the SPEC §7 table → `AMBIGUOUS_ZONE`; anything else unknown → `INVALID_ZONE`.
+3. **Injecting "now".** `now` is a required option in core (ISO-8601 UTC string); the CLI supplies the real clock; tests supply fixed instants.
+4. **DST policy.** Nonexistent **and** ambiguous request times are rejected with explicit codes (C10). Rule boundaries: gap → forward, overlap → earlier occurrence, with `DST_RULE_ADJUSTED` (G28).
+5. **Interval algebra and ranking.** Absolute-distance ranking from the requested start on a 15-minute lattice, ties → earlier, then greedy selection that skips overlapping candidates (C9, G22).
 
-### Proposed CLI exit codes (flag for approval)
+### Exit codes (D14, G24)
 
 | Code | Meaning |
 |---|---|
-| 0 | `book` |
-| 10 | `counter_offer` |
-| 11 | `needs_clarification` |
-| 2 | invalid input (schema error) |
-| 1 | internal error |
+| 0 | the computation succeeded (`book` or `counter_offer`) |
+| 1 | only with `--exit-code`: the decision is `counter_offer` |
+| 2 | input error (invalid input, zone, interval, DST request time) |
+| 3 | ambiguous zone abbreviation |
+| 4 | internal error |
 
 ## 6. Test strategy
 
-- **Unit tests** from every worked example in SPEC.md (15+), table-driven.
-- **Property-based (fast-check) invariants:**
-  - `book` ⇒ the slot lies fully inside a window for **both** parties.
+- **Unit tests** from every worked example in SPEC.md (24), table-driven.
+- **Property-based (fast-check) invariants** (INV-01 … INV-14 in `TEST_PLAN.md`), including:
+  - `book` ⇒ the slot lies fully inside availability for **every** participant.
   - Every counter-offer slot independently passes `check`.
-  - Duration of suggested slots == requested duration.
+  - Duration of suggested slots == requested duration; no two suggestions overlap.
   - Determinism: same input + same `now` ⇒ identical output.
   - No slot overlaps a blackout or lies before `now`.
-  - Slots are sorted by rank, unique, and ≤ `maxSuggestions`.
+  - Slots are in rank order, unique, and ≤ `maxSuggestions`.
   - UTC ↔ local round-trip is lossless for valid instants.
   - Expressing the same request in a different but equivalent zone yields the same decision.
-- **DST fixtures:** US (Mar/Nov), EU (Mar/Oct), Australia/Lord_Howe (30-min shift), zones without DST (Asia/Manila), midnight-wrap across a DST change.
+- **Independent oracle:** a minute-by-minute UTC reference model checks `evaluate` differentially.
+- **DST fixtures:** US (Mar/Nov), EU (Mar/Oct), Australia/Sydney, Australia/Lord_Howe (30-min shift), zones without DST (Asia/Manila), midnight-wrap across a DST change.
 - **CLI snapshot tests** for `check`, `suggest`, `explain` output and exit codes.
-- Coverage target: core ≥ 95% lines/branches.
+- Coverage target: core ≥ 95% lines/branches; Stryker mutation threshold (A-23).
 
-## 7. Milestones
+## 7. Milestones (detail: `ROADMAP.md`)
 
-| Week | Milestone | Definition of done |
+| Milestone | Week | Theme |
 |---|---|---|
-| 0 | Planning docs | SPEC, ARCHITECTURE (+ADRs), TEST_PLAN, ROADMAP, README skeleton approved by me |
-| 1 | Scaffold + types | pnpm workspace, strict TS, lint, Vitest, CI green; Zod schemas + generated JSON Schema; no logic yet |
-| 2 | Core windows | Same-day + overnight-wrap + per-weekday + blackout evaluation; all non-DST worked examples pass |
-| 3 | DST + suggest | DST policy implemented; fast-check invariants green; `suggest()` returns ranked slots in requester zone |
-| 4 | CLI | `check` / `suggest` / `explain`, JSON io, exit codes, snapshot tests, `--help` docs |
-| 5 | Agent + docs | `SKILL.md`, README with real `tempo explain` demo, example files that mirror the n8n flow, n8n Code-node snippet |
-| 6 | Release | Changesets, CHANGELOG, `npm publish --provenance` from GitHub Actions, v0.1.0 tagged |
+| M0 | 0 | Planning docs approved (done, round 3) |
+| M1 | 1 | Clean restart, scaffold, schemas, CI |
+| M2a | 2 | Interval algebra, decision, oracle |
+| M2b | 3 | DST, slot search, `suggest`, `explain`, properties |
+| M3 | 4 | CLI and exit codes |
+| M4 | 5 | JSON Schema, `SKILL.md`, examples, README demo |
+| M5 | 6 (first half) | Hardening and documentation review |
+| M6 | 6 (second half) | Release `v0.1.0` (npm, provenance, from GitHub Actions) |
 
 ## 8. Ecosystem contract (what later projects rely on)
 
 - `@marvinliem/tempo-core` public API: `evaluate`, `suggest`, `explain`, types, Zod schemas.
-- **Semver strictly.** Deskhand pins a major version.
-- The edge-case catalogue in TEST_PLAN.md is **exported as fixtures** (`@marvinliem/tempo-core/fixtures`). Deskbench seeds scenarios from it.
+- **Semver strictly** (see ARCHITECTURE §6 for the `0.x` rule). Deskhand pins a major version.
+- The edge-case catalogue in `TEST_PLAN.md` is **exported as fixtures** (`@marvinliem/tempo-core/fixtures`). Deskbench seeds scenarios from it.
 
-## 9. Risks & assumptions (flagged)
+## 9. Risks & assumptions
 
-- ⚠️ **Package name:** `tempo` is almost certainly taken on npm → plan for a scoped name (`@marvinliem/tempo`, `@marvinliem/tempo-cli`). The binary can still be `tempo`.
-- ⚠️ **Node version:** you have Node 24.x locally. Node 26 became Active LTS in Oct 2026. Decide: support `>=24` and test 24 + 26 in CI (recommended).
-- ⚠️ Overnight-shift weekday ownership is a product decision. Ask before choosing.
-- ⚠️ Assumes 2 parties and a single contiguous meeting.
+- ⚠️ **Package names:** `@marvinliem/tempo-core` and `@marvinliem/tempo` must be available on npm. M1 has a name gate (`pnpm check:names`); if it fails, stop and ask.
+- Node: `engines.node >=24`; CI tests 24 and 26 on ubuntu and windows (G29).
+- Everything else the docs don't settle is an `A-nn` row in `ASSUMPTIONS.md`.
 
-## 10. Open questions for the kickoff session
+## 10. Questions from the kickoff, now answered
 
-1. Final npm scope / package names?
-2. Which weekday owns an overnight shift (start day — recommended)?
-3. Default DST policy for nonexistent times: reject or shift forward?
-4. Suggestion horizon (e.g. next 7 days) and step (15 or 30 min)?
-5. Should `explain` output be human text by default and JSON with `--json`, or the other way round?
+| Question | Answer |
+|---|---|
+| npm scope / names | `@marvinliem/tempo-core`, `@marvinliem/tempo` (binary `tempo`) — subject to the M1 name gate |
+| Which weekday owns an overnight shift | the day it starts (C5) |
+| DST default for nonexistent times | reject with an error (C10); ambiguous times are rejected too |
+| Horizon and step | 14 days, 15 minutes (C9) |
+| `explain` output | human text by default, JSON with `--json` (SPEC §5) |
 
-## 11. Kickoff
+## 11. Status
 
-Open this folder in Claude Code and paste the **Project 1 kickoff prompt** from the Master Plan PDF (page 2). This PLAN.md and CLAUDE.md give it the context; it should produce `docs/SPEC.md`, `docs/ARCHITECTURE.md`, `docs/TEST_PLAN.md`, `docs/ROADMAP.md` and `README.md`, then stop for approval.
+Planning is approved (round 3, `DECISIONS.md` G22–G29). Work proceeds by milestone from `docs/plans/`; milestone 1 plan: `docs/plans/M1.md`.

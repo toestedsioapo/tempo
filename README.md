@@ -2,7 +2,7 @@
 
 Cross-time-zone meeting negotiation: a deterministic TypeScript **library + CLI** that decides whether a meeting request fits everyone’s working hours (overnight shifts, DST, blackout dates) and, if it doesn’t, returns ranked counter-offers with reasons.
 
-> **Status: planning.** The docs are written; the code is not. Nothing below is published yet. The first release will be `v0.1.0`. See [ROADMAP.md](./ROADMAP.md).
+> **Status: planning approved; implementation starting (milestone 1).** The docs are written; the engine is not. Nothing below is published yet. The first release will be `v0.1.0`. See [ROADMAP.md](./ROADMAP.md).
 
 ## The pitch
 
@@ -120,7 +120,7 @@ Get-Content demo.json -Raw | tempo explain --json
       ]
     },
     {
-      "slot": { "start": "2026-07-14T03:45:00+08:00", "end": "2026-07-14T04:45:00+08:00", "startUtc": "2026-07-13T19:45:00Z", "endUtc": "2026-07-13T20:45:00Z" },
+      "slot": { "start": "2026-07-14T03:00:00+08:00", "end": "2026-07-14T04:00:00+08:00", "startUtc": "2026-07-13T19:00:00Z", "endUtc": "2026-07-13T20:00:00Z" },
       "pass": true,
       "timeGate": "OK",
       "checks": [
@@ -129,7 +129,7 @@ Get-Content demo.json -Raw | tempo explain --json
       ]
     },
     {
-      "slot": { "start": "2026-07-14T03:30:00+08:00", "end": "2026-07-14T04:30:00+08:00", "startUtc": "2026-07-13T19:30:00Z", "endUtc": "2026-07-13T20:30:00Z" },
+      "slot": { "start": "2026-07-14T02:00:00+08:00", "end": "2026-07-14T03:00:00+08:00", "startUtc": "2026-07-13T18:00:00Z", "endUtc": "2026-07-13T19:00:00Z" },
       "pass": true,
       "timeGate": "OK",
       "checks": [
@@ -146,7 +146,7 @@ How to read it:
 - `requested` failed for both people (`OUTSIDE_AVAILABILITY`).
 - The three `candidates` are the suggestions, in **rank order** (distance from the requested start, ties earlier first), shown in the requester’s zone.
 - Each candidate’s `checks` name the rule that matched. Both match rules **owned by Monday 2026-07-13**: Bob’s shift started Monday 20:00 Manila and runs into Tuesday morning.
-- The suggestions overlap one another; that is what the locked ranking rule produces (see “Proposed veto V2” in the approval checklist).
+- Suggestions never overlap one another: after ranking, Tempo skips any candidate that overlaps one it already picked (here the 19:45Z and 19:30Z starts were skipped, and 19:00Z and 18:00Z were taken instead). Slots that merely touch are fine.
 
 The same input through `tempo check --json` returns the compact form (`decision`, `requested`, `slots`, `reasons`).
 
@@ -183,7 +183,7 @@ Input is a JSON file or stdin. Flags: `--json` (machine output), `--exit-code`, 
 | `1` | only with `--exit-code`: the decision is `counter_offer` (`book` stays `0`) |
 | `2` | input error: bad JSON or fields, unknown zone, `start == end` rule, a request time that doesn’t exist or is ambiguous because of DST |
 | `3` | ambiguous time-zone abbreviation (`IST`, `CST`, …); the JSON on stdout lists the candidate zones |
-| `4` | internal error (pending approval) |
+| `4` | internal error |
 
 ## Packages
 

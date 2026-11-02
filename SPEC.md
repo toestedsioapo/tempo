@@ -1,6 +1,6 @@
 # Tempo — SPEC.md
 
-> **Status:** PLANNING — awaiting approval. No implementation code exists or is specified here beyond type shapes.
+> **Status:** APPROVED (planning round 3). Implementation proceeds milestone by milestone (`ROADMAP.md`); no engine code exists yet. The Zod schemas (M1) become normative for shapes once written.
 > **Precedence:** `DECISIONS.md` is the source of truth. Where this file disagrees with it, this file is wrong.
 > **Assumptions:** every choice not fixed by `DECISIONS.md` is listed in [`ASSUMPTIONS.md`](./ASSUMPTIONS.md) as `A-nn` and flagged where it is used.
 > **Packages:** `@marvinliem/tempo-core` (library) and `@marvinliem/tempo` (CLI, binary `tempo`). First release: `v0.1.0`.
@@ -53,7 +53,7 @@ type NegotiationRequest = {
 type MeetingRequest = {
   date: LocalDate                 // the date of `start`, in `timeZone`
   start: ClockTime
-  end: ClockTime                  // end <= start  ⇒  ends the next day (C7); "24:00" not allowed here
+  end: ClockTime                  // end < start ⇒ ends the next day (C7 as amended by G23); end == start ⇒ INVALID_INPUT; "24:00" not allowed here
   timeZone: ZoneId                // the requester’s zone; all output slots are rendered in it
 }
 
@@ -106,7 +106,7 @@ type Reason = {
 ```
 
 * `evaluate()` ⇒ `slots = [requested]` on `book`; up to `maxSuggestions` ranked alternatives on `counter_offer` (possibly `[]`).
-* `suggest()` returns the same shape; `slots` always holds ranked alternatives (on a `book`, the requested slot itself is first, being at distance 0).
+* `suggest()` returns the same shape; `slots` always holds ranked alternatives (on a `book`, the requested slot itself is first, being at distance 0). Slots never overlap one another (G22, §4.7).
 * A `book` has `reasons: []` unless `DST_RULE_ADJUSTED` notes apply (§4.3).
 * There is **no** `needs_clarification` decision. An ambiguous zone is an `ErrorResult` with exit code 3 (D14, A-04).
 * `IsoSlot` carries no per-participant local views in v0.1.0; consumers convert from UTC (A-09).
@@ -122,7 +122,7 @@ type ErrorResult = {
 
 | `ErrorCode` | CLI exit | When | `details` |
 |---|---|---|---|
-| `INVALID_INPUT` | 2 | schema/format/bounds violation; fewer than 2 participants; duplicate `partyId`; unreadable file or bad JSON (CLI) | `issues: [{ path, message }]` |
+| `INVALID_INPUT` | 2 | schema/format/bounds violation; fewer than 2 participants; duplicate `partyId`; request `start == end` (G23); unreadable file or bad JSON (CLI) | `issues: [{ path, message }]` |
 | `INVALID_ZONE` | 2 | zone string is not an IANA id and not in the abbreviation table | `field`, `value` |
 | `AMBIGUOUS_ZONE` | **3** | zone string is in the abbreviation table (C11) | `field`, `value`, `options: ZoneId[]` |
 | `INVALID_INTERVAL` | 2 | availability rule with `start == end` (C5) | `field`, `start`, `end` |
@@ -184,7 +184,7 @@ type RuleRef = { weekday: DayName; start: ClockTime; end: EndTime; ownerDate: Lo
 
 ### 4.1 Validation order (first failure wins)
 
-1. **Schema** (Zod): shapes, formats, bounds, ≥ 2 participants, unique `partyId` → `INVALID_INPUT`.
+1. **Schema** (Zod): shapes, formats, bounds, ≥ 2 participants, unique `partyId`, request `start` ≠ `end` (G23) → `INVALID_INPUT`.
 2. **Zones**: `request.timeZone`, then `participants[0..n].timeZone` in array order → `AMBIGUOUS_ZONE` or `INVALID_ZONE`. Zones are validated **before** Luxon sees them, because Luxon accepts `IST`, `EST`, `PST`… as valid zones and would silently resolve them (C11).
 3. **Intervals**: participants in array order, weekdays Monday→Sunday, intervals in array order → `INVALID_INTERVAL`.
 4. **Request wall times**: `start`, then `end` → `DST_NONEXISTENT_LOCAL_TIME` or `DST_AMBIGUOUS_LOCAL_TIME`.
@@ -213,7 +213,7 @@ For participant *P*, each local date *D* in *P.timeZone* with weekday *W*, and e
 
 ### 4.4 The requested interval (C7)
 
-`start = date@request.start` in `request.timeZone`. `end = date@request.end` if `request.end > request.start`; otherwise `(date+1)@request.end`. Duration *Δ* is therefore in (0, 24 h]. `start == end` yields exactly 24 h (EX-10; see Proposed veto V1 in the approval checklist).
+`start = date@request.start` in `request.timeZone`. `request.end == request.start` is rejected in the schema step (`INVALID_INPUT`, G23, EX-10). Otherwise `end = date@request.end` if `request.end > request.start`, else `(date+1)@request.end` (so `end < start` crosses midnight, and `end: "00:00"` means the next midnight). The nominal duration is therefore in (0, 24 h); across a DST change the real duration can differ from the nominal one by the transition delta, and the real duration is the one used everywhere (*Δ*).
 
 ### 4.5 Time gates (C8)
 
@@ -234,8 +234,8 @@ With *H* = `searchHorizonDays`, *step* = `searchStepMinutes`, *Δ* the request d
 
 * **Candidate lattice (A-06):** `s_k = rs + k × step` for every integer *k*, with `|s_k − rs| ≤ H × 24 h` and `s_k >= bound`. Steps are absolute minutes, not wall-clock.
 * A candidate `[s_k, s_k + Δ]` **fits** iff it is available for every participant (§4.3).
-* **Rank:** ascending `|s_k − rs|`; ties → earlier `s_k` first. Keep the first `maxSuggestions`.
-* Candidates may overlap one another (A-08; see Proposed veto V2).
+* **Rank:** ascending `|s_k − rs|`; ties → earlier `s_k` first.
+* **Select greedily, without overlap (G22):** walk the ranked fitting candidates in order; skip a candidate that **overlaps** any slot already picked; stop at `maxSuggestions`. Two slots overlap iff each starts strictly before the other ends, so slots that merely touch (one ends exactly when the next starts) do not overlap (A-27). A skipped candidate is never revisited, and the result may hold fewer than `maxSuggestions` slots when the horizon runs out.
 * If the decision is `counter_offer` and nothing fits, `slots` is `[]` and `NO_SLOTS_IN_HORIZON` is appended.
 
 ### 4.8 Determinism
@@ -269,7 +269,7 @@ tempo explain [file]    # explain()   → per-candidate, per-participant trace
 | `1` | with `--exit-code` only: decision is `counter_offer` (with `--exit-code`, `book` stays `0`) |
 | `2` | input error (`INVALID_INPUT`, `INVALID_ZONE`, `INVALID_INTERVAL`, `DST_*_LOCAL_TIME`) |
 | `3` | ambiguous zone (`AMBIGUOUS_ZONE`) |
-| `4` | internal error (`INTERNAL_ERROR`; A-12, pending approval) |
+| `4` | internal error (`INTERNAL_ERROR`; G24) |
 
 `--exit-code` never changes the output, only the exit status, and only for successful computations.
 
@@ -281,6 +281,7 @@ tempo explain [file]    # explain()   → per-candidate, per-participant trace
 
 * The notation `monday–friday 09:00–17:00` means the same interval under each of those `weeklyRules` keys. The JSON form for EX-01 is:
   `"weeklyRules": { "monday": [{ "start": "09:00", "end": "17:00" }], "tuesday": [{ "start": "09:00", "end": "17:00" }], … "friday": […] }`.
+* Counter-offer `slots` are picked greedily without overlap (G22, §4.7); in these examples all slots start on the 15-minute lattice.
 * Unspecified `options` are at their defaults: `minNoticeMinutes 0`, `searchHorizonDays 14`, `searchStepMinutes 15`, `maxSuggestions 3`. `blackouts` default to none.
 * Offsets in parentheses are the UTC offsets used for that local instant. `Z` times are UTC. Intervals are closed.
 * Every conversion was computed from the IANA database through Luxon 3.7.2 in a throwaway script (not in the repo) **and** hand-checked against the transition dates quoted in each example.
@@ -300,7 +301,7 @@ tempo explain [file]    # explain()   → per-candidate, per-participant trace
 | EX-07 | End 24:00 and adjacent-interval merge | `book` | C5: `end: "24:00"` is allowed; touching intervals merge, so a request can span the join |
 | EX-08 | Request crossing midnight | `book` | C7: `end <= start` means the request ends the next day; merge across midnight |
 | EX-09 | Rule with start == end is rejected | `INVALID_INTERVAL` (exit 2) | C5 validation error `INVALID_INTERVAL`; D13 core never throws |
-| EX-10 | Request with start == end is a 24-hour request | `counter_offer` (0 slots) | C7 taken literally (`end <= start` includes equality); see Proposed veto V1 |
+| EX-10 | Request with start == end is rejected | `INVALID_INPUT` (exit 2) | G23 (V1): a likely typo is an error, not a 24-hour meeting; amends C7 to `end < start` ⇒ next day |
 | EX-11 | US spring-forward day (the old Example 2) | `counter_offer` (0 slots) | correction of the old Example 2: 2025-03-09 New York is EDT (−04:00) after 02:00; Sydney is still AEDT (+11:00) |
 | EX-12 | US spring-forward gap: nonexistent local time | `DST_NONEXISTENT_LOCAL_TIME` (exit 2) | C10: 02:30 does not exist on 2025-03-09 in America/New_York → rejected with a DST reason |
 | EX-13 | US fall-back: ambiguous local time | `DST_AMBIGUOUS_LOCAL_TIME` (exit 2) | C10: 01:30 occurs twice on 2025-11-02 in America/New_York → rejected, both readings reported |
@@ -491,7 +492,7 @@ tempo explain [file]    # explain()   → per-candidate, per-participant trace
 
 **Evaluation**
 
-Request `[14:00Z, 15:00Z]`. `bob` `[08:00Z, 16:00Z]` ⊇ request ✔. `alice`’s only Monday instance starts on the blackout date `2025-08-11`, so it is removed before merging (C6) → nothing contains the request. Because the request *would* be contained if the blackout were ignored, the reason is `IN_BLACKOUT` (not `OUTSIDE_AVAILABILITY`). The next unblocked day is Tuesday `2025-08-12`, where both windows overlap on `[13:00Z, 16:00Z]`; start times 13:00, 13:15, 13:30Z are 23 h, 23 h 15 m, 23 h 30 m from the requested start and beat 14:00Z (24 h). The last Friday option (`2025-08-08T15:00Z`) is 71 h away.
+Request `[14:00Z, 15:00Z]`. `bob` `[08:00Z, 16:00Z]` ⊇ request ✔. `alice`’s only Monday instance starts on the blackout date `2025-08-11`, so it is removed before merging (C6) → nothing contains the request. Because the request *would* be contained if the blackout were ignored, the reason is `IN_BLACKOUT` (not `OUTSIDE_AVAILABILITY`). The next unblocked day is Tuesday `2025-08-12`, where both windows overlap on `[13:00Z, 16:00Z]`. Fitting starts ranked by distance: 13:00Z (23 h), 13:15Z, 13:30Z, … Greedy non-overlap (G22) picks 13:00Z, skips 13:15Z–13:45Z (each overlaps the pick), then takes 14:00Z (24 h) and 15:00Z (25 h; the slot ends at 16:00Z exactly when `bob`’s window ends, which is allowed, A-16). The last Friday option (`2025-08-08T15:00Z`) is 71 h away and is never reached.
 
 > **Old SPEC error fixed:** the old Example 4 returned an `error` for a blackout and labelled August “EST”. Per C6/C8/C9 a blackout is a `counter_offer` with a reason; August in New York is EDT (−04:00).
 
@@ -504,8 +505,8 @@ Request `[14:00Z, 15:00Z]`. `bob` `[08:00Z, 16:00Z]` ⊇ request ✔. `alice`’
   "requested": { "start": "2025-08-11T10:00:00-04:00", "end": "2025-08-11T11:00:00-04:00", "startUtc": "2025-08-11T14:00:00Z", "endUtc": "2025-08-11T15:00:00Z" },
   "slots": [
     { "start": "2025-08-12T09:00:00-04:00", "end": "2025-08-12T10:00:00-04:00", "startUtc": "2025-08-12T13:00:00Z", "endUtc": "2025-08-12T14:00:00Z" },
-    { "start": "2025-08-12T09:15:00-04:00", "end": "2025-08-12T10:15:00-04:00", "startUtc": "2025-08-12T13:15:00Z", "endUtc": "2025-08-12T14:15:00Z" },
-    { "start": "2025-08-12T09:30:00-04:00", "end": "2025-08-12T10:30:00-04:00", "startUtc": "2025-08-12T13:30:00Z", "endUtc": "2025-08-12T14:30:00Z" }
+    { "start": "2025-08-12T10:00:00-04:00", "end": "2025-08-12T11:00:00-04:00", "startUtc": "2025-08-12T14:00:00Z", "endUtc": "2025-08-12T15:00:00Z" },
+    { "start": "2025-08-12T11:00:00-04:00", "end": "2025-08-12T12:00:00-04:00", "startUtc": "2025-08-12T15:00:00Z", "endUtc": "2025-08-12T16:00:00Z" }
   ],
   "reasons": [{ "code": "IN_BLACKOUT", "participantId": "alice", "message": "alice: availability is blocked by blackout date 2025-08-11." }]
 }
@@ -591,7 +592,7 @@ The request’s calendar date is Tuesday, but the shift that covers it is owned 
 
 **Evaluation**
 
-The request (Monday 02:00–03:00 Manila) = `[2025-01-12T18:00Z, 19:00Z]`. Under start-day ownership that time would belong to a **Sunday** shift, and `bob` has no Sunday rule; his Monday instance only starts at `2025-01-13T12:00Z` ✘. The nearest valid starts are 18 h after the requested start (`12:00Z`, `12:15Z`, `12:30Z`); the previous valid shift (owner `2025-01-06`) ended on `2025-01-07T22:00Z`, almost 5 days earlier.
+The request (Monday 02:00–03:00 Manila) = `[2025-01-12T18:00Z, 19:00Z]`. Under start-day ownership that time would belong to a **Sunday** shift, and `bob` has no Sunday rule; his Monday instance only starts at `2025-01-13T12:00Z` ✘. The nearest valid start is 18 h after the requested start (`12:00Z`); the previous valid shift (owner `2025-01-06`) ended on `2025-01-07T22:00Z`, almost 5 days earlier. Greedy non-overlap (G22) picks `12:00Z`, skips `12:15Z`–`12:45Z`, then takes `13:00Z` and `14:00Z`.
 
 **Output** (`evaluate`)
 
@@ -602,8 +603,8 @@ The request (Monday 02:00–03:00 Manila) = `[2025-01-12T18:00Z, 19:00Z]`. Under
   "requested": { "start": "2025-01-13T02:00:00+08:00", "end": "2025-01-13T03:00:00+08:00", "startUtc": "2025-01-12T18:00:00Z", "endUtc": "2025-01-12T19:00:00Z" },
   "slots": [
     { "start": "2025-01-13T20:00:00+08:00", "end": "2025-01-13T21:00:00+08:00", "startUtc": "2025-01-13T12:00:00Z", "endUtc": "2025-01-13T13:00:00Z" },
-    { "start": "2025-01-13T20:15:00+08:00", "end": "2025-01-13T21:15:00+08:00", "startUtc": "2025-01-13T12:15:00Z", "endUtc": "2025-01-13T13:15:00Z" },
-    { "start": "2025-01-13T20:30:00+08:00", "end": "2025-01-13T21:30:00+08:00", "startUtc": "2025-01-13T12:30:00Z", "endUtc": "2025-01-13T13:30:00Z" }
+    { "start": "2025-01-13T21:00:00+08:00", "end": "2025-01-13T22:00:00+08:00", "startUtc": "2025-01-13T13:00:00Z", "endUtc": "2025-01-13T14:00:00Z" },
+    { "start": "2025-01-13T22:00:00+08:00", "end": "2025-01-13T23:00:00+08:00", "startUtc": "2025-01-13T14:00:00Z", "endUtc": "2025-01-13T15:00:00Z" }
   ],
   "reasons": [{ "code": "OUTSIDE_AVAILABILITY", "participantId": "bob", "message": "bob: requested interval is not inside any availability interval." }]
 }
@@ -732,9 +733,9 @@ C7: `23:00 → 01:00` means the request ends the next day, so it is `[2025-01-11
 
 ---
 
-### EX-10 — Request with start == end is a 24-hour request
+### EX-10 — Request with start == end is rejected
 
-**Covers:** C7 taken literally (`end <= start` includes equality); see Proposed veto V1
+**Covers:** G23 (V1): `start == end` on a request is `INVALID_INPUT`; amends C7 to `end < start` ⇒ next day
 
 **Input**
 
@@ -743,44 +744,24 @@ C7: `23:00 → 01:00` means the request ends the next day, so it is `[2025-01-11
 - `bob` — `Europe/London` — weeklyRules: monday–friday 09:00–17:00
 - options: now=`2025-01-03T00:00:00Z` (other options at defaults)
 
-**Local → UTC expansion**
-
-- request: 2025-01-06 09:00 (+00:00) → 2025-01-07 09:00 (+00:00) = `[2025-01-06T09:00:00Z, 2025-01-07T09:00:00Z]` (24 h)
-- `alice` (`Europe/London`):
-  - owner 2025-01-06 monday 09:00–17:00: 2025-01-06 09:00 (+00:00) → 2025-01-06 17:00 (+00:00) = `[2025-01-06T09:00:00Z, 2025-01-06T17:00:00Z]`
-  - owner 2025-01-07 tuesday 09:00–17:00: 2025-01-07 09:00 (+00:00) → 2025-01-07 17:00 (+00:00) = `[2025-01-07T09:00:00Z, 2025-01-07T17:00:00Z]`
-- `bob` (`Europe/London`):
-  - owner 2025-01-06 monday 09:00–17:00: 2025-01-06 09:00 (+00:00) → 2025-01-06 17:00 (+00:00) = `[2025-01-06T09:00:00Z, 2025-01-06T17:00:00Z]`
-  - owner 2025-01-07 tuesday 09:00–17:00: 2025-01-07 09:00 (+00:00) → 2025-01-07 17:00 (+00:00) = `[2025-01-07T09:00:00Z, 2025-01-07T17:00:00Z]`
-
-**Merged availability** (blackouts removed, touching/overlapping instances merged; computed over the expanded search range, so a continuous run is cut at the range ends)
-
-- `alice`: `[2025-01-06T09:00:00Z, 2025-01-06T17:00:00Z]`, `[2025-01-07T09:00:00Z, 2025-01-07T17:00:00Z]`
-- `bob`: `[2025-01-06T09:00:00Z, 2025-01-06T17:00:00Z]`, `[2025-01-07T09:00:00Z, 2025-01-07T17:00:00Z]`
-
 **Evaluation**
 
-C7 as written: `end <= start` ⇒ the request ends the next day, and equality gives the maximum, 24 h: `[2025-01-06T09:00Z, 2025-01-07T09:00Z]`. Neither party has 24 contiguous hours (only 09:00–17:00) ✘ ✘, and no 24 h candidate exists. A `counter_offer` with `slots: []` is returned.
-
-> **Proposed veto V1:** C7 turns a likely typo (`09:00 → 09:00`) into a 24-hour meeting. See the approval checklist. Until the user decides, SPEC follows C7 literally.
+A request whose `start` equals its `end` is far more likely a typo than a request for a 24-hour meeting, so the schema step rejects it (§4.1 step 1) before any zone or availability work. A caller who really wants a meeting that ends at the same wall time the next day cannot express it; the longest expressible request is 23 h 59 min (A-28).
 
 **Output** (`evaluate`)
 
 ```json
 {
-  "ok": true,
-  "decision": "counter_offer",
-  "requested": { "start": "2025-01-06T09:00:00+00:00", "end": "2025-01-07T09:00:00+00:00", "startUtc": "2025-01-06T09:00:00Z", "endUtc": "2025-01-07T09:00:00Z" },
-  "slots": [],
-  "reasons": [
-    { "code": "OUTSIDE_AVAILABILITY", "participantId": "alice", "message": "alice: requested interval is not inside any availability interval." },
-    { "code": "OUTSIDE_AVAILABILITY", "participantId": "bob", "message": "bob: requested interval is not inside any availability interval." },
-    { "code": "NO_SLOTS_IN_HORIZON", "message": "No slot found within 14 days of the requested start." }
-  ]
+  "ok": false,
+  "error": {
+    "code": "INVALID_INPUT",
+    "message": "Request start and end must differ.",
+    "details": { "issues": [{ "path": "request.end", "message": "Request start and end must differ." }] }
+  }
 }
 ```
 
-**CLI exit code:** `0`; `1` with `--exit-code`
+**CLI exit code:** `2`
 
 ---
 
@@ -1060,9 +1041,7 @@ Lord_Howe: LHST +10:30; at 02:00 LHST (`2025-10-04T15:30Z`) clocks jump to 02:30
 
 **Evaluation**
 
-`alice` 09:00–17:00 IST (+05:30) = `[03:30Z, 11:30Z]`. `bob` 09:00–17:00 NPT (+05:45) = `[03:15Z, 11:15Z]`. The request `[03:15Z, 04:15Z]` ⊆ `bob` ✔ but begins 15 min before `alice` starts ✘. The nearest candidates start at `03:30Z`, `03:45Z`, `04:00Z` (15, 30, 45 min away), printed in the requester zone (+05:45) as 09:15, 09:30, 09:45.
-
-The three suggestions overlap each other. That follows directly from C9 (see Proposed veto V2).
+`alice` 09:00–17:00 IST (+05:30) = `[03:30Z, 11:30Z]`. `bob` 09:00–17:00 NPT (+05:45) = `[03:15Z, 11:15Z]`. The request `[03:15Z, 04:15Z]` ⊆ `bob` ✔ but begins 15 min before `alice` starts ✘. The nearest fitting start is `03:30Z` (15 min away). Greedy non-overlap (G22) picks it, skips `03:45Z`–`04:15Z` (each overlaps the pick), then takes `04:30Z` and `05:30Z`. Printed in the requester zone (+05:45) they are 09:15, 10:15 and 11:15.
 
 **Output** (`evaluate`)
 
@@ -1073,8 +1052,8 @@ The three suggestions overlap each other. That follows directly from C9 (see Pro
   "requested": { "start": "2025-01-13T09:00:00+05:45", "end": "2025-01-13T10:00:00+05:45", "startUtc": "2025-01-13T03:15:00Z", "endUtc": "2025-01-13T04:15:00Z" },
   "slots": [
     { "start": "2025-01-13T09:15:00+05:45", "end": "2025-01-13T10:15:00+05:45", "startUtc": "2025-01-13T03:30:00Z", "endUtc": "2025-01-13T04:30:00Z" },
-    { "start": "2025-01-13T09:30:00+05:45", "end": "2025-01-13T10:30:00+05:45", "startUtc": "2025-01-13T03:45:00Z", "endUtc": "2025-01-13T04:45:00Z" },
-    { "start": "2025-01-13T09:45:00+05:45", "end": "2025-01-13T10:45:00+05:45", "startUtc": "2025-01-13T04:00:00Z", "endUtc": "2025-01-13T05:00:00Z" }
+    { "start": "2025-01-13T10:15:00+05:45", "end": "2025-01-13T11:15:00+05:45", "startUtc": "2025-01-13T04:30:00Z", "endUtc": "2025-01-13T05:30:00Z" },
+    { "start": "2025-01-13T11:15:00+05:45", "end": "2025-01-13T12:15:00+05:45", "startUtc": "2025-01-13T05:30:00Z", "endUtc": "2025-01-13T06:30:00Z" }
   ],
   "reasons": [{ "code": "OUTSIDE_AVAILABILITY", "participantId": "alice", "message": "alice: requested interval is not inside any availability interval." }]
 }
@@ -1114,7 +1093,7 @@ The three suggestions overlap each other. That follows directly from C9 (see Pro
 
 **Evaluation**
 
-`bob`’s Monday shift starts on the blackout date `2025-01-13` (local, Manila), so the whole instance `[Jan 13 12:00Z, 22:00Z]` is removed (C6), including the part after midnight. The request `[18:00Z, 19:00Z]` would be inside it → `IN_BLACKOUT`. Next unblocked shift: owner `2025-01-20`, first candidates `2025-01-20T12:00Z`, `12:15Z`, `12:30Z`.
+`bob`’s Monday shift starts on the blackout date `2025-01-13` (local, Manila), so the whole instance `[Jan 13 12:00Z, 22:00Z]` is removed (C6), including the part after midnight. The request `[18:00Z, 19:00Z]` would be inside it → `IN_BLACKOUT`. Next unblocked shift: owner `2025-01-20`. Greedy non-overlap (G22) picks `2025-01-20T12:00Z`, `13:00Z` and `14:00Z` (the 15-minute starts between them overlap an earlier pick). The earlier shift (owner `2025-01-06`) is farther away: its last fitting start, `2025-01-06T21:00Z`, is 165 h from the requested start, against 162–164 h for the picks.
 
 A blackout on `2025-01-14` (Tuesday, the request’s calendar date) would **not** block this request; only the date the interval starts on matters.
 
@@ -1127,8 +1106,8 @@ A blackout on `2025-01-14` (Tuesday, the request’s calendar date) would **not*
   "requested": { "start": "2025-01-14T02:00:00+08:00", "end": "2025-01-14T03:00:00+08:00", "startUtc": "2025-01-13T18:00:00Z", "endUtc": "2025-01-13T19:00:00Z" },
   "slots": [
     { "start": "2025-01-20T20:00:00+08:00", "end": "2025-01-20T21:00:00+08:00", "startUtc": "2025-01-20T12:00:00Z", "endUtc": "2025-01-20T13:00:00Z" },
-    { "start": "2025-01-20T20:15:00+08:00", "end": "2025-01-20T21:15:00+08:00", "startUtc": "2025-01-20T12:15:00Z", "endUtc": "2025-01-20T13:15:00Z" },
-    { "start": "2025-01-20T20:30:00+08:00", "end": "2025-01-20T21:30:00+08:00", "startUtc": "2025-01-20T12:30:00Z", "endUtc": "2025-01-20T13:30:00Z" }
+    { "start": "2025-01-20T21:00:00+08:00", "end": "2025-01-20T22:00:00+08:00", "startUtc": "2025-01-20T13:00:00Z", "endUtc": "2025-01-20T14:00:00Z" },
+    { "start": "2025-01-20T22:00:00+08:00", "end": "2025-01-20T23:00:00+08:00", "startUtc": "2025-01-20T14:00:00Z", "endUtc": "2025-01-20T15:00:00Z" }
   ],
   "reasons": [{ "code": "IN_BLACKOUT", "participantId": "bob", "message": "bob: availability is blocked by blackout date 2025-01-13." }]
 }
@@ -1166,7 +1145,7 @@ A blackout on `2025-01-14` (Tuesday, the request’s calendar date) would **not*
 
 **Evaluation**
 
-Request start `14:30Z` < `now` `15:00Z` → `IN_PAST` (global reason, no participantId). Both parties would otherwise contain the request, so no participant reason is added. Candidates must start at or after `now`: `15:00Z`, `15:15Z`, `15:30Z` (30, 45, 60 min from the requested start).
+Request start `14:30Z` < `now` `15:00Z` → `IN_PAST` (global reason, no participantId). Both parties would otherwise contain the request, so no participant reason is added. Candidates must start at or after `now`. Greedy non-overlap (G22) picks `15:00Z` (30 min from the requested start) and `16:00Z` (1 h 30 min; `15:15Z`–`15:45Z` overlap the first pick). A start of `17:00Z` would end after `bob`’s window (`17:00Z`), so the third pick is the first fitting start of the next day, `2025-01-07T14:00Z` (23 h 30 min away).
 
 **Output** (`evaluate`)
 
@@ -1177,8 +1156,8 @@ Request start `14:30Z` < `now` `15:00Z` → `IN_PAST` (global reason, no partici
   "requested": { "start": "2025-01-06T09:30:00-05:00", "end": "2025-01-06T10:30:00-05:00", "startUtc": "2025-01-06T14:30:00Z", "endUtc": "2025-01-06T15:30:00Z" },
   "slots": [
     { "start": "2025-01-06T10:00:00-05:00", "end": "2025-01-06T11:00:00-05:00", "startUtc": "2025-01-06T15:00:00Z", "endUtc": "2025-01-06T16:00:00Z" },
-    { "start": "2025-01-06T10:15:00-05:00", "end": "2025-01-06T11:15:00-05:00", "startUtc": "2025-01-06T15:15:00Z", "endUtc": "2025-01-06T16:15:00Z" },
-    { "start": "2025-01-06T10:30:00-05:00", "end": "2025-01-06T11:30:00-05:00", "startUtc": "2025-01-06T15:30:00Z", "endUtc": "2025-01-06T16:30:00Z" }
+    { "start": "2025-01-06T11:00:00-05:00", "end": "2025-01-06T12:00:00-05:00", "startUtc": "2025-01-06T16:00:00Z", "endUtc": "2025-01-06T17:00:00Z" },
+    { "start": "2025-01-07T09:00:00-05:00", "end": "2025-01-07T10:00:00-05:00", "startUtc": "2025-01-07T14:00:00Z", "endUtc": "2025-01-07T15:00:00Z" }
   ],
   "reasons": [{ "code": "IN_PAST", "message": "Requested start 2025-01-06T14:30:00Z is before now 2025-01-06T15:00:00Z." }]
 }
@@ -1216,7 +1195,7 @@ Request start `14:30Z` < `now` `15:00Z` → `IN_PAST` (global reason, no partici
 
 **Evaluation**
 
-`now` + 120 min = `15:00Z`. The request start `14:00Z` is not in the past (≥ `now`) but is before the lower bound → `INSUFFICIENT_NOTICE`. Candidates start at or after `15:00Z`: `15:00Z` (1 h from the requested start), `15:15Z`, `15:30Z`. Both parties would otherwise contain the request.
+`now` + 120 min = `15:00Z`. The request start `14:00Z` is not in the past (≥ `now`) but is before the lower bound → `INSUFFICIENT_NOTICE`. Candidates start at or after `15:00Z`. Greedy non-overlap (G22) picks `15:00Z` (1 h from the requested start), `16:00Z` (2 h) and then `2025-01-07T14:00Z` (24 h), because a `17:00Z` start would end after `bob`’s window. Both parties would otherwise contain the request.
 
 **Output** (`evaluate`)
 
@@ -1227,8 +1206,8 @@ Request start `14:30Z` < `now` `15:00Z` → `IN_PAST` (global reason, no partici
   "requested": { "start": "2025-01-06T09:00:00-05:00", "end": "2025-01-06T10:00:00-05:00", "startUtc": "2025-01-06T14:00:00Z", "endUtc": "2025-01-06T15:00:00Z" },
   "slots": [
     { "start": "2025-01-06T10:00:00-05:00", "end": "2025-01-06T11:00:00-05:00", "startUtc": "2025-01-06T15:00:00Z", "endUtc": "2025-01-06T16:00:00Z" },
-    { "start": "2025-01-06T10:15:00-05:00", "end": "2025-01-06T11:15:00-05:00", "startUtc": "2025-01-06T15:15:00Z", "endUtc": "2025-01-06T16:15:00Z" },
-    { "start": "2025-01-06T10:30:00-05:00", "end": "2025-01-06T11:30:00-05:00", "startUtc": "2025-01-06T15:30:00Z", "endUtc": "2025-01-06T16:30:00Z" }
+    { "start": "2025-01-06T11:00:00-05:00", "end": "2025-01-06T12:00:00-05:00", "startUtc": "2025-01-06T16:00:00Z", "endUtc": "2025-01-06T17:00:00Z" },
+    { "start": "2025-01-07T09:00:00-05:00", "end": "2025-01-07T10:00:00-05:00", "startUtc": "2025-01-07T14:00:00Z", "endUtc": "2025-01-07T15:00:00Z" }
   ],
   "reasons": [{ "code": "INSUFFICIENT_NOTICE", "message": "Requested start 2025-01-06T14:00:00Z is earlier than now plus 120 minutes (2025-01-06T15:00:00Z)." }]
 }
@@ -1267,7 +1246,7 @@ Request start `14:30Z` < `now` `15:00Z` → `IN_PAST` (global reason, no partici
 
 **Evaluation**
 
-`alice` (London, GMT = UTC): `[08:00Z, 10:00Z]` and `[11:00Z, 13:00Z]`, which do not touch, so they stay separate. The request `[10:00Z, 11:00Z]` falls exactly in the gap ✘. Distances from the requested start: 09:00 → 1 h; 11:00 → 1 h (tie → **earlier first**); 08:45 → 1 h 15 m; 11:15 → 1 h 15 m (tie → earlier first). With `maxSuggestions = 3` the result is `[09:00, 11:00, 08:45]`; 11:15 is cut. The output order is **rank order**, not chronological.
+`alice` (London, GMT = UTC): `[08:00Z, 10:00Z]` and `[11:00Z, 13:00Z]`, which do not touch, so they stay separate. The request `[10:00Z, 11:00Z]` falls exactly in the gap ✘. Distances from the requested start: 09:00 → 1 h; 11:00 → 1 h (tie → **earlier first**); 08:45 → 1 h 15 m; 11:15 → 1 h 15 m (tie → earlier first). Greedy non-overlap (G22): pick 09:00 and 11:00; skip 08:45, 11:15, 08:30, 11:30, 08:15 and 11:45 (each overlaps a pick); 08:00 (2 h away, touching the 09:00 slot) and 12:00 (2 h away) tie, and the earlier wins. With `maxSuggestions = 3` the result is `[09:00, 11:00, 08:00]`. The output order is **rank order**, not chronological.
 
 **Output** (`evaluate`)
 
@@ -1279,7 +1258,7 @@ Request start `14:30Z` < `now` `15:00Z` → `IN_PAST` (global reason, no partici
   "slots": [
     { "start": "2025-01-06T09:00:00+00:00", "end": "2025-01-06T10:00:00+00:00", "startUtc": "2025-01-06T09:00:00Z", "endUtc": "2025-01-06T10:00:00Z" },
     { "start": "2025-01-06T11:00:00+00:00", "end": "2025-01-06T12:00:00+00:00", "startUtc": "2025-01-06T11:00:00Z", "endUtc": "2025-01-06T12:00:00Z" },
-    { "start": "2025-01-06T08:45:00+00:00", "end": "2025-01-06T09:45:00+00:00", "startUtc": "2025-01-06T08:45:00Z", "endUtc": "2025-01-06T09:45:00Z" }
+    { "start": "2025-01-06T08:00:00+00:00", "end": "2025-01-06T09:00:00+00:00", "startUtc": "2025-01-06T08:00:00Z", "endUtc": "2025-01-06T09:00:00Z" }
   ],
   "reasons": [{ "code": "OUTSIDE_AVAILABILITY", "participantId": "alice", "message": "alice: requested interval is not inside any availability interval." }]
 }
@@ -1494,14 +1473,14 @@ A zone string is checked **before Luxon**, case-insensitively, against this tabl
 | A1, A2 (workspace/config) | `ARCHITECTURE.md` §1, §2; not specified here |
 | C5 interval algebra, `24:00`, `start == end` | §3.2, §4.3; EX-05, EX-07, EX-09 |
 | C6 blackout in the party’s zone, blocks intervals that start on the date | §4.3; EX-04, EX-18 |
-| C7 request `end <= start` | §4.4; EX-08, EX-10 |
+| C7 request `end < start` (amended by G23) | §4.4; EX-08, EX-10 |
 | C8 `now`, `minNoticeMinutes`, request before now | §3.2, §4.5; EX-19, EX-20 |
-| C9 search horizon, step, ranking, tie-break | §4.7; EX-17, EX-21 |
+| C9 search horizon, step, ranking, tie-break; G22 non-overlapping picks | §4.7; EX-04, EX-06, EX-17 … EX-21 |
 | C10 nonexistent and ambiguous local times rejected | §3.4, §4.2; EX-12, EX-13 |
 | C11 zone validation before Luxon, abbreviation table | §4.1, §7; EX-23 |
 | C12 Luxon, not Temporal | `ARCHITECTURE.md` ADR 1 |
 | D13 `participants[]`, errors as values | §2, §3.2, §3.4; EX-22 |
-| D14 exit codes, `--exit-code` | §5; every example’s “CLI exit code” line |
+| D14 exit codes, `--exit-code`; G24 exit 4 | §5; every example’s “CLI exit code” line |
 | D15 `ExplainResult` | §3.6; EX-22 |
 | D16 `dst.ts`, root `SKILL.md` | `ARCHITECTURE.md` §1 |
 | E17–E19 test strategy | `TEST_PLAN.md` |
