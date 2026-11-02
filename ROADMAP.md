@@ -1,162 +1,183 @@
 # Tempo — ROADMAP.md
 
-> **Status:** Draft (planning only — no implementation code)
-> **Mode:** Plan-mode deliverable. Review and approve before any scaffolding or code.
-
----
+> **Status:** PLANNING — awaiting approval. I will not scaffold or write code until `CLAUDE.md` says `IMPLEMENTATION — milestone N`.
+> **Precedence:** `DECISIONS.md` is the source of truth. Assumptions: `A-nn` in [`ASSUMPTIONS.md`](./ASSUMPTIONS.md). Test IDs: [`TEST_PLAN.md`](./TEST_PLAN.md).
 
 ## Overview
 
-Six weekly milestones, ending in an npm release with provenance. Each milestone has a definition of done (DoD). Work is spec-first and test-first: tests are written before implementation within each milestone.
+Six milestones over about six weeks, ending in the **first release, `v0.1.0`** of two packages published to npm with provenance from GitHub Actions: `@marvinliem/tempo-core` (library) and `@marvinliem/tempo` (CLI, binary `tempo`).
+
+| Milestone | Week | Theme |
+|---|---|---|
+| M0 | 0 | Planning docs approved (this set) |
+| M1 | 1 | Clean restart, scaffold, schemas, CI |
+| M2a | 2 | Interval algebra, decision, oracle |
+| M2b | 3 | DST, slot search, `suggest`, `explain`, properties |
+| M3 | 4 | CLI and exit codes |
+| M4 | 5 | JSON Schema, `SKILL.md`, examples, README demo |
+| M5 | 6 (first half) | Hardening and documentation review |
+| M6 | 6 (second half) | Release `v0.1.0` |
+
+**How every task is done** (applies to all milestones):
+
+* One milestone task per branch and PR; Conventional Commits; PR description lists the tests added.
+* Superpowers flow: `brainstorming` → `writing-plans` → `test-driven-development` → `subagent-driven-development` / `executing-plans` → `requesting-code-review` → `verification-before-completion` → `finishing-a-development-branch`. (If a skill is not installed, follow the same discipline by hand.)
+* **A failing test first**, then minimal code, then refactor.
+* Anything not decided in `DECISIONS.md` is written to `ASSUMPTIONS.md` or asked, never chosen silently.
+* CI (the full 24/26 × ubuntu/windows matrix) must be green before merge.
 
 ---
 
-## Milestone 1 — Foundation & Core Types (Week 1)
+## M1 — Clean restart and foundation (Week 1)
 
-**Goal:** Scaffold the pnpm workspace, define shared types and Zod schemas, set up CI, and add an npm-scope availability gate.
+**Goal:** a green, empty, correctly configured monorepo with the schemas test-first and the npm names confirmed. No engine logic.
 
-**Scope:**
-- Root `package.json` (private, workspaces: `packages/*`, `npm-scope` gate in package.json)
-- `pnpm-workspace.yaml`
-- `packages/core` scaffold: `@tempo/core`, TypeScript strict, Luxon, Zod, Vitest
-- `packages/cli` scaffold: `@tempo/cli`, binary `tempo`, depends on `@tempo/core`
-- Public types (`types.ts`), request/response Zod schemas (`schema.ts`)
-- GitHub Actions CI: install, typecheck, lint, test
-- MIT license
-- `.npmrc` provenance config (no secrets)
-- `changesets` configured for versioning
-- npm-scope availability gate: root `package.json` `publishConfig` restricted to ` Tempo/*` scope
+**Scope**
 
-**Definition of Done:**
-- `pnpm install` works
-- `pnpm test` passes (empty suite green)
-- `pnpm run typecheck` passes
-- CI runs on push/PR and is green
-- `packages/core` exports types and schemas; `packages/cli` has a `tempo` binary stub
+1. **Delete `packages/*/src`.** That code was written before approval and does not build; it is not repaired. It stays in git history at `5f8ae8c`. Also review the stray root files `verify_types.ts` and `tsconfig.verify.json`.
+2. **Name gate (F20):** `pnpm check:names` verifies that `@marvinliem/tempo-core` and `@marvinliem/tempo` are available (or owned) on npm. If not, stop and ask for new names before going further.
+3. **Root configuration** replacing the current one: `package.json` (private; version reset, A-20; `packageManager: pnpm@12.x`, A-21; `engines.node >=24`; scripts `build`, `typecheck`, `lint`, `test`, `test:watch`, `gen:schema`, `check:names`, all cross-platform with `rimraf`/`cross-env`). Note the current root `test` script passes `--passWithNoTests` to pnpm, which is wrong: that flag goes on the `vitest run` call inside each package script until real tests exist. `pnpm-workspace.yaml` with `packages: ['packages/*']`. Shared `tsconfig` (strict, `noUncheckedIndexedAccess`, ESM, `NodeNext`). ESLint including the purity rules. changesets. MIT licence. `.npmrc` (`engine-strict=true`, no secrets).
+4. **Package scaffolds:** `@marvinliem/tempo-core` and `@marvinliem/tempo` (bin `tempo`), both `0.1.0`, ESM with `exports`.
+5. **Types and Zod schemas, test-first:** CORE-01 … CORE-07 and CORE-41; `pnpm gen:schema` produces `schema/rules.schema.json`; Zod major version chosen here (A-22).
+6. **CI workflow:** Node 24 and 26 × ubuntu-latest and windows-latest; frozen-lockfile install, typecheck, lint, test, build.
+7. **Repo checks:** CFG-01 … CFG-08, CFG-10, CFG-11 (CFG-09 comes with `SKILL.md`).
+8. Housekeeping from A-19: decide whether planning docs move into `docs/` (ADRs stay inside ARCHITECTURE.md unless asked).
 
----
+**Definition of done**
 
-## Milestone 2 — Pure Core Negotiation (Week 2)
-
-Split into two sub-milestones:
-
-### Milestone 2a — Interval Algebra, Decision & Oracle (Week 2a)
-
-**Goal:** Implement and test the deterministic interval algebra and decision logic.
-
-**Scope:**
-- `negotiate(request): NegotiationResult` — pure, `now` injected
-- Working-hours evaluation: per-day intervals, overnight wrap, split shifts
-- Blackout date (full-day) checks
-- DST handling: nonexistent and ambiguous local times mapped to clean rejection
-- Unit tests (CORE-01…CORE-16) + property invariants (INV-01…INV-10)
-
-**Definition of Done (2a):**
-- All core unit tests pass
-- All property-based invariants pass
-- 100% coverage of core public functions
-- No `Date.now()` or clock access inside core
-- SPEC.md worked examples verified against unit tests
-- Brute-force UTC oracle matches `negotiate()` output on all example inputs
-
-**Definition of Done (2b):**
-- Slots ≤ 3, sorted ascending by start time
-- No returned slot falls on a blackout date
-- Counter-offer slots ranked by distance, ties earlier first
-- All SPEC.md examples verified against unit tests
-
-### Milestone 2b — Slot Search & DST (Week 2b)
-
-**Goal:** Implement and test alternative-slot generation and counter-offer search.
-
-**Scope:**
-- Slot generation: up to 3 absolute ISO-8601 slots with offsets
-- Counter-offer search: `searchHorizonDays` default 14, 15-minute step, same duration as request, up to 3 slots ranked by absolute distance from requested start (ties: earlier first)
-- DST: deterministic slot search across transition boundaries
-- Unit tests for counter-offer ranking
-- End-to-end verification of all SPEC.md Section 5 examples
-
-**Definition of Done:**
-- Slots ≤ 3, sorted ascending by start time
-- No returned slot falls on a blackout date
-- Counter-offer slots ranked by distance, ties earlier first
-- All SPEC.md examples verified against unit tests
+- [ ] `pnpm install --frozen-lockfile` works on Linux and Windows.
+- [ ] `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build` pass; `pnpm test` runs the schema and repo tests, not an empty suite.
+- [ ] CI green on all four matrix jobs.
+- [ ] `packages/*/src` contains only the new test-first schema/type code; the old files are gone.
+- [ ] `pnpm gen:schema` is reproducible (CORE-41); `schema/rules.schema.json` is generated, never hand-edited.
+- [ ] `pnpm check:names` passed (or new names agreed).
+- [ ] `CLAUDE.md` “Build command” and “Test command” sections match reality.
 
 ---
 
-## Milestone 3 — CLI Commands & Exit Codes (Week 3)
+## M2a — Interval algebra, decision and oracle (Week 2)
 
-**Goal:** Implement `tempo check`, `tempo suggest`, `tempo explain` with JSON in/out and stable exit codes.
+**Goal:** a correct book / counter-offer **decision** with reasons, for non-search cases, cross-checked by an independent oracle.
 
-**Scope:**
-- CLI argument parsing and JSON input (file or stdin)
-- Zone validation: IANA accepted; ambiguous abbreviations → exit 3 with structured JSON
-- `now` injection: `DateTime.now().toMillis()` at CLI boundary; `--now` override flag
-- Exit codes: 0 = book, 1 = counter_offer, 2 = input error, 3 = ambiguous timezone
-- `tempo explain` prints per-slot pass/fail reasons
-- CLI snapshot tests (CLI-01…CLI-08)
+**Scope**
 
-**Definition of Done:**
-- All three commands produce correct exit codes and JSON output
-- All CLI snapshot tests pass
-- `tempo explain` output is stable and snapshot-locked
-- No interactive TTY prompts anywhere
+* Zone validation before Luxon with the SPEC §7 table (C11): CORE-08 … CORE-11.
+* Availability instances, overnight wrap with start-day ownership, `24:00`, `start == end` rejection (C5); blackouts in the party’s zone (C6); merge; closed containment: CORE-12 … CORE-21.
+* Request interval incl. `end <= start` (C7); time gates `IN_PAST`, `INSUFFICIENT_NOTICE` (C8): CORE-22, CORE-23.
+* `evaluate()` returning the decision and reasons. For a `counter_offer`, `slots` is not computed yet; the examples that need ranked slots are marked `todo` until M2b.
+* Oracle ORC-01 (decision only) and ORC-02.
+* Worked examples fully passing in M2a: **EX-01, EX-03, EX-05, EX-07, EX-08, EX-09, EX-14, EX-15, EX-23**. Decision-and-reason assertions only for the rest.
 
----
+**Definition of done**
 
-## Milestone 4 — Rules Schema & SKILL.md (Week 4)
+- [ ] All listed CORE tests, examples and ORC-02 pass.
+- [ ] ORC-01 agrees with `evaluate` on the decision and the failing participants for the generated inputs of G-03/G-04 (small horizon).
+- [ ] Core purity check CORE-40 passes (no `Date.now`, no raw `Date`, no `process`, no `fs`).
+- [ ] 95%+ line and branch coverage on the files added in this milestone.
+- [ ] `ASSUMPTIONS.md` updated for anything newly decided.
 
-**Goal:** Ship machine-readable rules schema and agent-facing documentation.
+## M2b — DST, slot search, `suggest`, `explain` (Week 3)
 
-**Scope:**
-- JSON Schema generated from Zod (`getRulesJsonSchema()` exported from `@tempo/core`)
-- `SKILL.md` at repo root: how Claude Code / agents drive the CLI via pipes
-- Example rule files (JSON) for common scenarios (overnight shift, DST zones, blackouts)
-- README skeleton with mocked `tempo explain` demo
+**Goal:** the complete core.
 
-**Definition of Done:**
-- `getRulesJsonSchema()` returns valid JSON Schema
-- `SKILL.md` includes example invocations and expected exit codes
-- Example rule files validate against the schema
-- README skeleton reviewed
+**Scope**
 
----
+* Wall-time classification and the C10 rejection with exact `details`: CORE-35 … CORE-39 (US, EU, Sydney, Lord_Howe, Manila).
+* Rule-boundary policy and `DST_RULE_ADJUSTED` (A-07): CORE-38.
+* Counter-offer search on the lattice, ranking, tie-break, `NO_SLOTS_IN_HORIZON` (C9): CORE-24 … CORE-34.
+* `suggest()` and `explain()` (D15).
+* All property invariants INV-01 … INV-13 with the generators G-01 … G-05 (E18); the full differential oracle ORC-01 incl. slots.
+* **All 24 worked examples pass** with byte-exact output.
 
-## Milestone 5 — Polish, Edge Cases & Docs (Week 5)
+**Definition of done**
 
-**Goal:** Harden DST edge cases, complete documentation, and review spec coverage.
-
-**Scope:**
-- Additional DST edge-case tests (spring-forward gap, fall-back ambiguity, overnight crossing DST)
-- SPEC.md 15+ worked examples all mapped to passing tests
-- TEST_PLAN.md edge-case catalogue fully covered
-- ARCHITECTURE.md ADRs reviewed and signed off
-- README finalized (pitch, why, install, mocked demo)
-
-**Definition of Done:**
-- All edge-case tests pass
-- All 5 planning documents (SPEC, ARCHITECTURE, TEST_PLAN, ROADMAP, README) consistent with code
-- No secrets in repo
-- All TODO items in planning documents resolved
-- Documentation reviews signed off by designated reviewer
+- [ ] EX-01 … EX-24 pass; DOC-02 confirms SPEC.md and fixtures agree.
+- [ ] INV-01 … INV-13 green at 200 runs on PR; a 5,000-run nightly job is configured.
+- [ ] ORC-01 agrees with `evaluate` on decisions **and** ranked slots.
+- [ ] Output is deterministic (INV-06) and participant-order independent (INV-07).
+- [ ] Core coverage ≥ 95% line and branch (QG-01).
+- [ ] Every ErrorCode and ReasonCode in SPEC §3 is produced by at least one test.
 
 ---
 
-## Milestone 6 — Release with Provenance (Week 6)
+## M3 — CLI commands and exit codes (Week 4)
 
-**Goal:** Publish `@tempo/core` and `@tempo/cli` to npm with GitHub Actions provenance.
+**Goal:** `tempo check`, `tempo suggest`, `tempo explain` with JSON in/out and the exit codes of **D14**.
 
-**Scope:**
-- Build step (TypeScript compile) for both packages
-- npm provenance mapping to GitHub Actions workflow runner
-- Publisher token configured via GitHub OIDC (no secrets in repo)
-- `npm publish` for `@tempo/core` and `@tempo/cli`
-- Tag release `v1.0.0`
-- Post-release: verify packages installable and `tempo` binary works
+**Scope**
 
-**Definition of Done:**
-- `npm view @tempo/core` and `npm view @tempo/cli` return published packages
-- npm provenance visible on published packages (GitHub Actions runner)
-- GitHub release tag `v1.0.0` created
-- `npx @tempo/cli` (or `tempo` after global install) runs end-to-end
-- Roadmap complete; await stakeholder approval for next project (MCP server)
+* Argument parsing; input from file, stdin or `-`; UTF-8 with BOM stripped (CLI-11, CLI-12).
+* `--json`, `--exit-code`, `--now <ISO>`, `--help`, `--version`; `--now` > `options.now` > the real clock, which only `clock.ts` reads (CLI-10).
+* **Exit codes (D14):** `0` whenever the computation succeeds; with `--exit-code`, `counter_offer` → `1` (and `book` → `0`); `2` input error (including DST errors); `3` ambiguous zone; `4` internal error (A-12, pending approval). *This replaces the earlier M3 text “0 = book, 1 = counter_offer, 2 = input error, 3 = ambiguous timezone”, which contradicted D14.*
+* Human-readable output by default; JSON shapes exactly as in the SPEC (CLI-01 … CLI-19).
+* Never prompts on a TTY (CLI-13).
+
+**Definition of done**
+
+- [ ] CLI-01 … CLI-18 pass on Linux and Windows jobs.
+- [ ] Every `CLI exit code` line in SPEC §6 is asserted by a test.
+- [ ] Snapshots reviewed; each snapshot change is explained in its PR.
+- [ ] No interactive prompt anywhere (CLI-13).
+- [ ] `tempo --help` documents every flag and exit code.
+
+---
+
+## M4 — Schema, agent skill, examples, README (Week 5)
+
+**Goal:** make Tempo usable by agents and by someone who has never seen the repo.
+
+**Scope**
+
+* `schema/rules.schema.json` generated and published with the package; example input files validate against it (CORE-41).
+* **`SKILL.md` at the repo root**, tool-agnostic (D16): how an agent drives the CLI through pipes, with example invocations and expected exit codes (CFG-08, CFG-09).
+* `examples/` mirroring the n8n flow, including an n8n Code-node snippet, and the files used by the README demo.
+* README final: pitch, why, install, a real `tempo explain` demo that is reproducible on Windows PowerShell and bash (CLI-19, DOC-03).
+
+**Definition of done**
+
+- [ ] CFG-08, CFG-09, CLI-19, DOC-03 pass.
+- [ ] Example inputs validate against the generated JSON Schema.
+- [ ] A person on Windows/PowerShell can run the README demo copy-paste.
+
+## M5 — Hardening and documentation review (Week 6, first half)
+
+**Scope**
+
+* Mutation testing at the threshold (QG-02); coverage gate enforced in CI (QG-01).
+* Extra DST edge-case fixtures if the property runs find gaps; fixtures export stable (QG-05).
+* Documentation consistency pass: DOC-01 … DOC-03; every `A-nn` resolved or accepted; no TODOs in the planning docs.
+* Secret scan; `.npmrc` and workflows contain no tokens.
+
+**Definition of done**
+
+- [ ] QG-01 … QG-05 green.
+- [ ] All five planning docs match the shipped behaviour (checklist signed off in the PR by me).
+- [ ] No open `Needs approval` rows in `ASSUMPTIONS.md`.
+
+## M6 — Release v0.1.0 (Week 6, second half)
+
+**Scope**
+
+* changesets version both packages to **`0.1.0`**; CHANGELOG generated by changesets (never hand-edited).
+* The release workflow publishes `@marvinliem/tempo-core` and `@marvinliem/tempo` **from GitHub Actions** with provenance (OIDC); nothing is published from a local machine.
+* Tag `v0.1.0`, GitHub release notes.
+* Post-release verification on Linux and Windows: `npm view` both packages; `npx @marvinliem/tempo --version`; run the README demo from the published package.
+
+**Definition of done**
+
+- [ ] `npm view @marvinliem/tempo-core` and `npm view @marvinliem/tempo` return `0.1.0`.
+- [ ] Provenance badge visible on both npm pages.
+- [ ] `v0.1.0` tag and release exist.
+- [ ] Downstream note for Deskhand MCP: the public API is `evaluate`, `suggest`, `explain`, the fixtures and the schemas; breaking changes follow the `0.x` rule in ARCHITECTURE §6.
+
+---
+
+## Risks and gates
+
+| Risk | Mitigation |
+|---|---|
+| `@marvinliem/*` names unavailable | M1 name gate (CFG-10) before anything else |
+| Luxon DST behaviour differs between versions | never rely on Luxon defaults for request times (ADR 4); DST fixtures run on the whole CI matrix |
+| Oracle shares a bug with the engine | oracle is written independently, minute-based, and validated on the SPEC examples first (ORC-02) |
+| Zod / JSON-Schema tooling change | decided at M1 (A-22); drift test CORE-41 |
+| Node 26 / Vitest / Stryker compatibility | the CI matrix finds it in M1, not in M6 |

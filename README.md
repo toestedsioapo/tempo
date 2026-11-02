@@ -1,116 +1,204 @@
-﻿# Tempo
+# Tempo
 
-Cross-time-zone meeting negotiation — a deterministic TypeScript library + CLI.
+Cross-time-zone meeting negotiation: a deterministic TypeScript **library + CLI** that decides whether a meeting request fits everyone’s working hours (overnight shifts, DST, blackout dates) and, if it doesn’t, returns ranked counter-offers with reasons.
 
-## The Pitch
+> **Status: planning.** The docs are written; the code is not. Nothing below is published yet. The first release will be `v0.1.0`. See [ROADMAP.md](./ROADMAP.md).
 
-Tempo answers one question: **"Given two people's working hours, time zones, and blackout dates, does this meeting slot work for both of them?"**
+## The pitch
 
-If not, Tempo returns up to three alternative slots where both parties overlap — expressed unambiguously as ISO-8601 with offsets.
+Tempo answers one question: **“Given these people’s working hours, time zones and blackout dates, does this meeting slot work for all of them?”**
 
-It generalizes a production n8n "Meeting Scheduler" where one party works an overnight shift (8 p.m. → 6 a.m., wrapping midnight) and the other works standard daytime hours. Tempo makes that logic pure, testable, and importable by downstream projects (MCP server, agent eval harness, SaaS dashboard).
+If it does, the decision is `book`. If not, it is `counter_offer`: why each person can’t make it, plus up to three alternative slots expressed unambiguously as ISO-8601 with offsets, ranked by how close they are to the time asked for.
+
+It generalizes a working n8n **Meeting Scheduler**, where Gemini extracts `{day, start, end, requester time zone}` from an email, one party works an overnight shift (8 p.m.–6 a.m., so the window wraps midnight), and the flow books the slot or offers three alternatives in the requester’s local time. Tempo turns that code step into a tested, importable engine. It is the scheduling brain for later projects (Deskhand MCP, Deskbench, Deskflow).
 
 ## Why
 
-- **Deterministic:** Same inputs always produce the same output. No hidden clock, no network, no guesses.
-- **DST-safe:** IANA zones with Luxon. Spring-forward gaps and fall-back ambiguities are rejected or documented — never silently shifted.
-- **Overnight-aware:** An 8 p.m.–6 a.m. window belongs to its start day and is evaluated across the calendar boundary correctly.
-- **AI-friendly:** JSON in/out, stable exit codes (0/1/2/3), no interactive prompts — pipes and scripts welcome.
-- **Importable:** `@tempo/core` is a pure TypeScript library; later projects consume it directly.
+- **Deterministic.** Same input, same output. `now` is an input; there is no hidden clock, network or randomness in the core.
+- **DST-correct.** IANA zones via Luxon. A wall-clock time that doesn’t exist (spring forward) or occurs twice (fall back) is **rejected with a reason, never silently shifted**.
+- **Never guesses.** `IST`, `CST`, `EST`… are ambiguous, so Tempo returns the candidate zones and exits `3` instead of picking one.
+- **Overnight-aware.** An overnight shift belongs to the day it **starts** on. Blackouts and weekdays are read in each person’s own zone.
+- **N participants.** Two or more people, not just two.
+- **Agent-ready.** JSON in, JSON out, stable exit codes, no prompts. A tool-agnostic `SKILL.md` ships at the repo root.
 
-## Install
-
-```bash
-# Locally (this repo is a pnpm workspace)
-pnpm install
-
-# Use the CLI
-pnpm --filter @tempo/cli tempo check --help
-```
-
-Published packages (after Milestone 6):
+## Install (once released)
 
 ```bash
-npm install -g @tempo/cli
-tempo check --help
+# CLI (binary: tempo)
+npm install -g @marvinliem/tempo
+
+# Library
+pnpm add @marvinliem/tempo-core
 ```
+
+Requires Node `>=24`. From source (this repo is a pnpm 12 workspace): `pnpm install`, `pnpm build`.
 
 ## Demo: `tempo explain`
 
-A concrete, reproducible example: party A (America/New_York) works a regular 09:00–17:00 window; party B (Europe/London) works an overnight shift from 20:00 Monday to 06:00 Tuesday. Requesting Monday 22:00–23:00 (America/New_York, 02:00–03:00 UTC) is free for A but Party B's Monday evening is dead — the counter-offer is Tuesday 19:00–20:00 (America/New_York), which falls inside both parties' hours.
+Alice works in New York, 09:00–17:00 Monday to Friday. Bob works nights in Manila, 20:00–06:00 Monday to Friday. The requester is in Manila and asks for **Tuesday 2026-07-14, 10:00–11:00 Manila time**.
 
-```bash
-$ cat > tempo-demo.json <<'EOF'
-{
-  "request": {
-    "date": "2026-07-13",
-    "start": "22:00",
-    "end": "23:00",
-    "requesterTimeZone": "America/New_York",
-    "partyA": {
-      "timeZone": "America/New_York",
-      "weeklyRules": { "monday": [{ "start": "09:00", "end": "17:00" }] },
-      "blackoutDates": []
-    },
-    "partyB": {
-      "timeZone": "Europe/London",
-      "weeklyRules": { "monday": [{ "start": "20:00", "end": "06:00" }] },
-      "blackoutDates": []
-    },
-    "now": "2026-07-13T00:00:00Z"
-  }
-}
-EOF
-$ tempo explain tempo-demo.json
-```
+That instant is `2026-07-14T02:00Z`: Monday 22:00 in New York (EDT, −04:00), and outside Bob’s shift (his Monday-owned shift ended at 06:00 Tuesday Manila time). Neither can make it, so Tempo offers the nearest times that work for both.
 
-**Mocked output:**
+Save this as `demo.json`:
 
 ```json
 {
-  "decision": "counter_offer",
-  "candidate": {
-    "start": "2026-07-13T19:00:00-04:00",
-    "end": "2026-07-13T20:00:00-04:00"
-  },
-  "reasons": [
-    "Party B unavailable 22:00–23:00 on Monday (working hours 09:00–17:00)"
-  ],
-  "slots": [
+  "request": { "date": "2026-07-14", "start": "10:00", "end": "11:00", "timeZone": "Asia/Manila" },
+  "participants": [
     {
-      "start": "2026-07-14T15:00:00-04:00",
-      "end": "2026-07-14T16:00:00-04:00"
+      "partyId": "alice",
+      "timeZone": "America/New_York",
+      "weeklyRules": {
+        "monday": [{ "start": "09:00", "end": "17:00" }],
+        "tuesday": [{ "start": "09:00", "end": "17:00" }],
+        "wednesday": [{ "start": "09:00", "end": "17:00" }],
+        "thursday": [{ "start": "09:00", "end": "17:00" }],
+        "friday": [{ "start": "09:00", "end": "17:00" }]
+      },
+      "blackouts": []
+    },
+    {
+      "partyId": "bob",
+      "timeZone": "Asia/Manila",
+      "weeklyRules": {
+        "monday": [{ "start": "20:00", "end": "06:00" }],
+        "tuesday": [{ "start": "20:00", "end": "06:00" }],
+        "wednesday": [{ "start": "20:00", "end": "06:00" }],
+        "thursday": [{ "start": "20:00", "end": "06:00" }],
+        "friday": [{ "start": "20:00", "end": "06:00" }]
+      },
+      "blackouts": []
+    }
+  ],
+  "options": { "now": "2026-07-13T00:00:00Z" }
+}
+```
+
+Then run it from a file or from stdin.
+
+**bash**
+
+```bash
+tempo explain demo.json --json
+tempo explain --json < demo.json
+```
+
+**Windows PowerShell** (also fine on 5.1: if you create the file with `Set-Content -Encoding utf8`, which writes a BOM, the CLI strips it)
+
+```powershell
+tempo explain demo.json --json
+Get-Content demo.json -Raw | tempo explain --json
+```
+
+**Output** (`options.now` is in the input file, so the result is reproducible; the exit code is `0`, or `1` with `--exit-code`, because the decision is `counter_offer`):
+
+```json
+{
+  "ok": true,
+  "decision": "counter_offer",
+  "reasons": [
+    { "code": "OUTSIDE_AVAILABILITY", "participantId": "alice", "message": "alice: requested interval is not inside any availability interval." },
+    { "code": "OUTSIDE_AVAILABILITY", "participantId": "bob", "message": "bob: requested interval is not inside any availability interval." }
+  ],
+  "requested": {
+    "slot": { "start": "2026-07-14T10:00:00+08:00", "end": "2026-07-14T11:00:00+08:00", "startUtc": "2026-07-14T02:00:00Z", "endUtc": "2026-07-14T03:00:00Z" },
+    "pass": false,
+    "timeGate": "OK",
+    "checks": [
+      { "participant": "alice", "ruleMatched": null, "pass": false, "reasonCode": "OUTSIDE_AVAILABILITY" },
+      { "participant": "bob", "ruleMatched": null, "pass": false, "reasonCode": "OUTSIDE_AVAILABILITY" }
+    ]
+  },
+  "candidates": [
+    {
+      "slot": { "start": "2026-07-14T04:00:00+08:00", "end": "2026-07-14T05:00:00+08:00", "startUtc": "2026-07-13T20:00:00Z", "endUtc": "2026-07-13T21:00:00Z" },
+      "pass": true,
+      "timeGate": "OK",
+      "checks": [
+        { "participant": "alice", "ruleMatched": { "weekday": "monday", "start": "09:00", "end": "17:00", "ownerDate": "2026-07-13" }, "pass": true, "reasonCode": "OK" },
+        { "participant": "bob", "ruleMatched": { "weekday": "monday", "start": "20:00", "end": "06:00", "ownerDate": "2026-07-13" }, "pass": true, "reasonCode": "OK" }
+      ]
+    },
+    {
+      "slot": { "start": "2026-07-14T03:45:00+08:00", "end": "2026-07-14T04:45:00+08:00", "startUtc": "2026-07-13T19:45:00Z", "endUtc": "2026-07-13T20:45:00Z" },
+      "pass": true,
+      "timeGate": "OK",
+      "checks": [
+        { "participant": "alice", "ruleMatched": { "weekday": "monday", "start": "09:00", "end": "17:00", "ownerDate": "2026-07-13" }, "pass": true, "reasonCode": "OK" },
+        { "participant": "bob", "ruleMatched": { "weekday": "monday", "start": "20:00", "end": "06:00", "ownerDate": "2026-07-13" }, "pass": true, "reasonCode": "OK" }
+      ]
+    },
+    {
+      "slot": { "start": "2026-07-14T03:30:00+08:00", "end": "2026-07-14T04:30:00+08:00", "startUtc": "2026-07-13T19:30:00Z", "endUtc": "2026-07-13T20:30:00Z" },
+      "pass": true,
+      "timeGate": "OK",
+      "checks": [
+        { "participant": "alice", "ruleMatched": { "weekday": "monday", "start": "09:00", "end": "17:00", "ownerDate": "2026-07-13" }, "pass": true, "reasonCode": "OK" },
+        { "participant": "bob", "ruleMatched": { "weekday": "monday", "start": "20:00", "end": "06:00", "ownerDate": "2026-07-13" }, "pass": true, "reasonCode": "OK" }
+      ]
     }
   ]
 }
 ```
 
-Exit code: `1` (counter_offer).
+How to read it:
 
-The slot `2026-07-14T15:00:00-04:00` is inside both parties' hours: Monday 09:00–17:00 for A and Tuesday 20:00–06:00 for B (wrapped midnight).
+- `requested` failed for both people (`OUTSIDE_AVAILABILITY`).
+- The three `candidates` are the suggestions, in **rank order** (distance from the requested start, ties earlier first), shown in the requester’s zone.
+- Each candidate’s `checks` name the rule that matched. Both match rules **owned by Monday 2026-07-13**: Bob’s shift started Monday 20:00 Manila and runs into Tuesday morning.
+- The suggestions overlap one another; that is what the locked ranking rule produces (see “Proposed veto V2” in the approval checklist).
 
-## CLI Commands
+The same input through `tempo check --json` returns the compact form (`decision`, `requested`, `slots`, `reasons`).
 
-| Command | Purpose | Exit Codes |
-|---------|---------|------------|
-| `tempo check` | Is this slot bookable for both parties? | 0 = book, 1 = counter_offer, 2 = error, 3 = ambiguous zone |
-| `tempo suggest` | Generate up to 3 alternative slots | 0 = slots found, 1 = no slots, 2 = error, 3 = ambiguous zone |
-| `tempo explain` | Why did each candidate slot pass or fail? | 0 / 1 / 2 / 3 |
+## Library
+
+```ts
+import { evaluate } from "@marvinliem/tempo-core"
+
+const result = evaluate({ request, participants, options: { now: "2026-07-13T00:00:00Z" } })
+if (!result.ok) {
+  // result.error.code: INVALID_INPUT | INVALID_ZONE | AMBIGUOUS_ZONE | INVALID_INTERVAL | DST_*_LOCAL_TIME
+} else if (result.decision === "counter_offer") {
+  // result.reasons, result.slots (ranked, up to 3)
+}
+```
+
+Core never throws and never reads the clock.
+
+## CLI
+
+| Command | Purpose |
+|---|---|
+| `tempo check [file]` | Does the request fit everyone? `book` or `counter_offer` |
+| `tempo suggest [file]` | Ranked alternative slots |
+| `tempo explain [file]` | Per-candidate, per-participant trace |
+
+Input is a JSON file or stdin. Flags: `--json` (machine output), `--exit-code`, `--now <ISO-8601 UTC>`, `--help`, `--version`.
+
+**Exit codes** (public API):
+
+| Code | Meaning |
+|---|---|
+| `0` | the computation succeeded (whatever the decision) |
+| `1` | only with `--exit-code`: the decision is `counter_offer` (`book` stays `0`) |
+| `2` | input error: bad JSON or fields, unknown zone, `start == end` rule, a request time that doesn’t exist or is ambiguous because of DST |
+| `3` | ambiguous time-zone abbreviation (`IST`, `CST`, …); the JSON on stdout lists the candidate zones |
+| `4` | internal error (pending approval) |
 
 ## Packages
 
 | Package | Role | Publishes |
-|---------|------|-----------|
-| `@tempo/core` | Pure negotiation math | Yes (npm, with provenance) |
-| `@tempo/cli` | CLI (`tempo` binary) | Yes (npm, with provenance) |
+|---|---|---|
+| `@marvinliem/tempo-core` | Pure engine: `evaluate`, `suggest`, `explain`, types, Zod schemas, fixtures | npm, with provenance |
+| `@marvinliem/tempo` | CLI (`tempo` binary) | npm, with provenance |
 
-## Roadmap
+## Documents
 
-Six weekly milestones ending in an npm release with provenance. See [ROADMAP.md](./ROADMAP.md).
+[SPEC.md](./SPEC.md) (types, semantics, 24 verified worked examples) · [ARCHITECTURE.md](./ARCHITECTURE.md) (toolchain, boundaries, ADRs) · [TEST_PLAN.md](./TEST_PLAN.md) (tests, properties, traceability) · [ROADMAP.md](./ROADMAP.md) · [DECISIONS.md](./DECISIONS.md) (locked decisions) · [ASSUMPTIONS.md](./ASSUMPTIONS.md)
 
 ## Contributing
 
-Spec-first, test-first. No implementation without an approved spec and test plan. See [ARCHITECTURE.md](./ARCHITECTURE.md) and [TEST_PLAN.md](./TEST_PLAN.md).
+Spec-first, test-first. No production code without a failing test, and no implementation before the planning docs are approved.
 
 ## License
 
