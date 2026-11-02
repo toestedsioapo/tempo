@@ -158,7 +158,7 @@ CLI: print (human, or JSON with --json) → exit code
 
 ## 6. Stability guarantees
 
-* Exit codes (`0/1/2/3`, plus `4` once approved) and the JSON shapes of `NegotiationResult`, `ExplainResult` and `ErrorResult` are public API. A change needs a major bump (after 1.0; a minor bump with a CHANGELOG entry and migration note while on `0.x`).
+* Exit codes (`0/1/2/3/4`) and the JSON shapes of `NegotiationResult`, `ExplainResult` and `ErrorResult` are public API. A change needs a major bump (after 1.0; a minor bump with a CHANGELOG entry and migration note while on `0.x`).
 * Output is deterministic: stable sort and tie-breaks everywhere.
 * `ReasonCode` and `ErrorCode` are closed enums; adding a value is a minor change, removing or renaming one is breaking.
 * No secrets in the repo; `.npmrc` and CI use GitHub OIDC for provenance, no tokens.
