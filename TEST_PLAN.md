@@ -100,6 +100,8 @@ Each example is also run through `suggest` and `explain` for structural consiste
 | CORE-41 | Schema drift | regenerating `schema/rules.schema.json` reproduces the committed file; every `fixtures/examples/*.json` input validates against it |
 | CORE-42 | Request `start == end` (G23) | `INVALID_INPUT` with `details.issues[0].path` `request.end` (exact message in EX-10); `end < start` still means next day; `start: 00:00`, `end: 00:00` is also rejected |
 | CORE-43 | Non-overlapping selection (G22) | greedy over the ranked candidates: an overlapping candidate is skipped and never revisited; touching slots are both kept (A-27); fewer than `maxSuggestions` slots are returned when the horizon runs out |
+| CORE-44 | Output schemas and closed enums | `NegotiationResult`, `ExplainResult`, `ErrorResult` and the slot and reason shapes are strict Zod schemas; `ErrorCode` and `ReasonCode` are closed enums that match SPEC §3 exactly. Tests: `packages/core/src/output-schema.test.ts` |
+| CORE-45 | CLI exit-code mapping | every `ErrorCode` maps to exit `2`, `3` or `4` per D14, and the constants `0/1/2/3/4` are fixed (public API). Tests: `packages/cli/src/exit-codes.test.ts` |
 
 ## 4. Property-based invariants (`*.prop.test.ts`, fast-check)
 
@@ -235,7 +237,7 @@ Run on Linux and Windows in CI. Snapshots live in `packages/cli/test/__snapshots
 | CFG-05 | root scripts `build`, `typecheck`, `lint`, `test` exist; `test` does not pass `--passWithNoTests` through pnpm |
 | CFG-06 | `pnpm-workspace.yaml` lists exactly `packages/*` |
 | CFG-07 | core `dependencies` are exactly `luxon` and `zod`; no `Temporal` import anywhere in core |
-| CFG-08 | `packages/core/src/dst.ts` exists and `dts.ts` does not; `SKILL.md` exists at the repo root |
+| CFG-08 | no file named `dts.ts` anywhere under `packages/` (active in M1). Split per A-36: `packages/core/src/dst.ts` exists (`it.todo` until M2b) and `SKILL.md` exists at the repo root (`it.todo` until M4) |
 | CFG-09 | every fenced example in `SKILL.md` parses, and its documented exit codes match CLI behaviour |
 | CFG-10 | `pnpm check:names` confirms `@marvinliem/tempo-core` and `@marvinliem/tempo` are available (or owned) on npm — the Milestone 1 gate (F20) |
 | CFG-11 | `.changeset/config.json` exists; release workflow publishes with provenance and contains no token |
