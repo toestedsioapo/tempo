@@ -37,7 +37,7 @@ docs/plans/     milestone plans (M1.md, …)
 *.md            SPEC, ARCHITECTURE, TEST_PLAN, ROADMAP, DECISIONS, ASSUMPTIONS at the repo root (A-30)
 ```
 
-## Build command (planned; update once scaffolded)
+## Build command
 
 ```
 pnpm install
