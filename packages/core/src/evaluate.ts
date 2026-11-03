@@ -1,5 +1,7 @@
 import { DateTime } from "luxon";
+import { findDstError } from "./dst.js";
 import { applyBlackouts, contains, expandInstances, findInvalidInterval, mergeSpans } from "./intervals.js";
+import { internalError } from "./internal-error.js";
 import type { Span } from "./intervals.js";
 import { parseNegotiationRequest } from "./parse.js";
 import { requestedSpan, timeGate } from "./gates.js";
@@ -19,10 +21,8 @@ function participantReason(party: PartyRules, span: Span): Reason | null {
   const blocked = all
     .filter((i) => party.blackouts.includes(i.ownerDate) && i.startMs < span.endMs && i.endMs > span.startMs)
     .sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs)[0];
-  // Normally a blacked-out instance overlaps the request. Until M2b's C10 check rejects request
-  // times inside a DST gap (A-53), such a time can give an inverted or zero-length span that no
-  // instance overlaps; report OUTSIDE_AVAILABILITY then instead of throwing.
-  return blocked ? inBlackout(party.partyId, blocked.ownerDate) : outsideAvailability(party.partyId);
+  // The span is non-empty (G33), so a blacked-out instance overlapping it exists here.
+  return inBlackout(party.partyId, (blocked as NonNullable<typeof blocked>).ownerDate);
 }
 
 function compute(request: ResolvedNegotiationRequest): NegotiationResult {
@@ -31,7 +31,11 @@ function compute(request: ResolvedNegotiationRequest): NegotiationResult {
   const intervalError = findInvalidInterval(request);
   if (intervalError) return intervalError;
 
+  const dstError = findDstError(request);
+  if (dstError) return dstError;
+
   const span = requestedSpan(request.request);
+  if (!(span.startMs < span.endMs)) return internalError();
   const requested = toIsoSlot(span, request.request.timeZone);
   const nowMs = DateTime.fromISO(request.options.now, { zone: "utc" }).toMillis();
 

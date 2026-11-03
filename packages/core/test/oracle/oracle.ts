@@ -16,9 +16,10 @@
 // Overnight rules (end < start) are owned by the day they start: they cover t >= start on the
 // owner date and t < end on the following date.
 //
-// DST limitation (A-07, A-55): the oracle reads each minute's wall time and so does NOT model the
-// A-07 rule-boundary policy (gap boundary -> forward, overlap boundary -> earlier occurrence). It
-// diverges from the engine at DST gaps AND at fall-back overlaps, so it must only be used on inputs
+// DST limitation (A-07, G34, A-55): the oracle reads each minute's wall time. That reading agrees
+// with G34 at gaps (a nonexistent boundary is the transition instant), but it does NOT model the
+// A-07 overlap policy (earlier occurrence), so it still diverges from the engine at fall-back
+// overlaps and must only be used on inputs
 // away from transitions. ORC-02 excludes EX-24 for this reason (A-55), and the ORC-01 generators
 // keep every request more than one day from any transition of every zone involved.
 import { DateTime } from "luxon";

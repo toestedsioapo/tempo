@@ -7,7 +7,6 @@ import {
   expandInstances,
   findInvalidInterval,
   mergeSpans,
-  wallTimeToMs,
 } from "./intervals.js";
 import type { PartyRules, ResolvedNegotiationRequest } from "./types.js";
 
@@ -17,21 +16,6 @@ const party = (timeZone: string, weeklyRules: PartyRules["weeklyRules"], blackou
   timeZone,
   weeklyRules,
   blackouts,
-});
-
-describe("wallTimeToMs (A-53)", () => {
-  // Luxon 3.7.2 default for overlaps: NY and Berlin pick the LATER instant, Sydney the EARLIER one.
-  // Tempo always picks the earlier, so the NY and Berlin rows contradict Luxon's default.
-  it.each([
-    ["2025-01-06", "09:00", "America/New_York", "2025-01-06T14:00:00Z"],
-    ["2025-11-02", "01:30", "America/New_York", "2025-11-02T05:30:00Z"],
-    ["2025-10-26", "02:30", "Europe/Berlin", "2025-10-26T00:30:00Z"],
-    ["2025-04-06", "02:30", "Australia/Sydney", "2025-04-05T15:30:00Z"],
-    ["2025-03-09", "02:30", "America/New_York", "2025-03-09T07:30:00Z"],
-    ["2025-01-06", "24:00", "America/New_York", "2025-01-07T05:00:00Z"],
-  ] as const)("%s %s %s -> %s", (date, time, zone, expected) => {
-    expect(wallTimeToMs(date, time, zone)).toBe(ms(expected));
-  });
 });
 
 describe("expandInstances", () => {

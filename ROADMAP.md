@@ -104,7 +104,7 @@ Six milestones over about six weeks, ending in the **first release, `v0.1.0`** o
 **Notes carried from M2a review**
 
 - `dst.ts` needs a classifier that returns the 0/1/2 candidate instants plus the offsets before and after the transition; `wallTimeToMs` returns one number, and the C10 error details need more. ARCHITECTURE.md:43 puts wall-time to instant in `dst.ts`, while it lives in `intervals.ts` today.
-- Decide what a rule whose start is pushed past its end by a DST gap means (for example 02:30-03:00 on a spring-forward day becomes negative, [07:30Z, 07:00Z]); SPEC is silent.
+- Decide what a rule whose start is pushed past its end by a DST gap means (for example 02:30-03:00 on a spring-forward day becomes negative, [07:30Z, 07:00Z]); SPEC is silent. **Resolved by G34:** a gap boundary resolves to the transition instant, and a rule wholly inside the gap is dropped (Task 3).
 - Add a direct `intervals` test where the party's local date differs from the UTC date for a blackout (Manila 07:00 is 23:00Z the previous day).
 - Lowercase `utc`/`gmt` request zones render `Z` (settled in the M2a fix wave, A-60).
 - Do not release between M2a and M2b: `evaluate` is public, and until C10 lands DST-gap request times are accepted (A-53).

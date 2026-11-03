@@ -49,7 +49,7 @@ Table-driven: one fixture per SPEC example (`fixtures/examples/ex-nn.json` holdi
 | EX-21 | Ranking and tie-break | `evaluate` | slots `[09:00, 11:00, 08:00]` (rank order, not chronological; 08:45, 11:15 … skipped as overlapping) |
 | EX-22 | Three participants + trace | `explain` | exact `ExplainResult` |
 | EX-23 | Ambiguous “IST” | `evaluate` | `AMBIGUOUS_ZONE`, exact `options` |
-| EX-24 | Rule boundary inside a gap | `evaluate` | `book` + `DST_RULE_ADJUSTED`, instance `[07:30Z, 14:00Z]` |
+| EX-24 | Rule boundary inside a gap | `evaluate` | `book` + `DST_RULE_ADJUSTED`, instance `[07:00Z, 14:00Z]` |
 
 Each example is also run through `suggest` and `explain` for structural consistency (`explain.decision` and `reasons` equal `evaluate`'s; `explain.candidates` equal `evaluate`'s `slots` on a counter_offer; `suggest.slots[0]` equals the requested slot on a `book`).
 
@@ -94,7 +94,7 @@ Each example is also run through `suggest` and `explain` for structural consiste
 | CORE-35 | Gap detection per fixture zone | `America/New_York 2025-03-09 02:00–02:59`, `Europe/Berlin 2025-03-30 02:30`, `Australia/Sydney 2025-10-05 02:30`, `Australia/Lord_Howe 2025-10-05 02:15` ⇒ nonexistent; `Asia/Manila` never |
 | CORE-36 | Overlap detection per fixture zone | `America/New_York 2025-11-02 01:00–01:59`, `Europe/Berlin 2025-10-26 02:30`, `Australia/Sydney 2025-04-06 02:30`, `Australia/Lord_Howe 2025-04-06 01:45` ⇒ ambiguous; `Asia/Manila` never |
 | CORE-37 | Times next to a transition | `New_York 2025-03-09 01:59` and `03:00`, `2025-11-02 00:59` and `02:00`, `Lord_Howe 2025-10-05 02:30` are valid and unique |
-| CORE-38 | Rule-boundary policy (A-07) | gap boundary ⇒ forward; overlap boundary ⇒ earlier occurrence; `DST_RULE_ADJUSTED` only when the adjusted instance overlaps the request |
+| CORE-38 | Rule-boundary policy (A-07) | gap boundary ⇒ transition instant (G34); overlap boundary ⇒ earlier occurrence; rule wholly inside a gap ⇒ dropped; `DST_RULE_ADJUSTED` only when the adjusted instance overlaps the request |
 | CORE-39 | Request `end` in a gap/overlap | error with `details.field: "request.end"` |
 | CORE-40 | Purity | lint/static check: core imports only `luxon` and `zod`, uses no forbidden globals; the compiled bundle contains no `Date.now` |
 | CORE-41 | Schema drift | regenerating `schema/rules.schema.json` reproduces the committed file; every `fixtures/examples/*.json` input validates against it |
@@ -182,7 +182,7 @@ Run on Linux and Windows in CI. Snapshots live in `packages/cli/test/__snapshots
 | Missing or non-ISO `now` | `INVALID_INPUT` | — | CORE-04 |
 | Request before `now`; insufficient notice | `IN_PAST`; `INSUFFICIENT_NOTICE` | EX-19, EX-20 | CORE-22, CORE-23 |
 | +05:30 / +05:45 offsets; Lord_Howe 30-minute shift | exact minute arithmetic | EX-16, EX-17 | G-01, ORC-01 |
-| Rule boundary in a DST gap | forward + `DST_RULE_ADJUSTED` | EX-24 | CORE-38 |
+| Rule boundary in a DST gap | transition instant (G34) + `DST_RULE_ADJUSTED`; overlap = earlier occurrence | EX-24 | CORE-38 |
 | Participant order | irrelevant | EX-22 | INV-07 |
 
 ## 8. Quality gates

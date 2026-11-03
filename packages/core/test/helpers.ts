@@ -29,7 +29,7 @@ export function withChange(path: readonly (string | number)[], value: unknown): 
 // ---------------------------------------------------------------------------------------------
 // ORC-01 generators (TEST_PLAN §4, E18, G-03 … G-05). Every generated input is valid and stays
 // more than one day away from any DST transition of every zone involved: the oracle does not
-// model the A-07 rule-boundary policy (oracle.ts header, A-55).
+// model the A-07 overlap policy (earlier occurrence; oracle.ts header, A-55, G34).
 // ---------------------------------------------------------------------------------------------
 
 /** A generated input: valid for both `evaluate` (cast) and `oracleDecision`. */
