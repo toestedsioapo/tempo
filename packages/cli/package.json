@@ -21,7 +21,8 @@
   "scripts": {
     "build": "rimraf dist && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.reporter=lcov --coverage.reporter=json-summary"
   },
   "dependencies": {
     "@marvinliem/tempo-core": "workspace:*"
