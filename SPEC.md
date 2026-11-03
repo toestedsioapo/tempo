@@ -207,7 +207,7 @@ For participant *P*, each local date *D* in *P.timeZone* with weekday *W*, and e
 
 * **Ownership (C5):** the instance is owned by *D*, the day it **starts**, whatever days it touches. Monday 20:00–06:00 covers Tuesday 00:00–06:00 only through Monday’s rule.
 * Both boundaries are converted with the IANA zone, so an instance’s real length can differ from its nominal length across DST (EX-14, EX-15, EX-16).
-* **Rule-boundary policy (A-07):** a boundary in a gap resolves forward (the pre-transition offset is applied, as Luxon does); a boundary in an overlap resolves to the **earlier** occurrence. If an adjusted instance overlaps the requested interval, a `DST_RULE_ADJUSTED` reason is emitted.
+* **Rule-boundary policy (A-07, G34):** a nonexistent boundary, start **or** end, resolves to the **transition instant** (the first instant after the gap); an ambiguous boundary resolves to the **earlier** occurrence. An instance with `end <= start` after resolving (a rule wholly inside the gap) is dropped with no reason. If an adjusted instance overlaps the requested interval, a `DST_RULE_ADJUSTED` reason is emitted.
 * **Blackouts (C6):** a blackout date is read in *P*’s own zone and removes every instance **owned by** that date, including any part after midnight. An instance that started the day before is unaffected.
 * **Merge:** remaining instances are merged per participant; instances that overlap **or touch** (`next.start <= current.end`) join. Intervals are **closed** (A-16).
 * **Containment:** an interval `[s, e]` is available for *P* iff it lies inside one merged interval (`m.start <= s && e <= m.end`).
@@ -317,7 +317,7 @@ tempo explain [file]    # explain()   → per-candidate, per-participant trace
 | EX-21 | Counter-offer ranking and tie-break | `counter_offer` (3 slots) | C9: rank by absolute distance from the requested start; ties → earlier first; output is rank order, not chronological |
 | EX-22 | Three participants, with the explain trace | `counter_offer` (3 slots) | D13 (N participants); D15 `ExplainResult`; ruleMatched/reasonCode per participant per candidate |
 | EX-23 | Ambiguous abbreviation "IST" | `AMBIGUOUS_ZONE` (exit 3) | C11: zone validation happens before Luxon; `IST` → `AMBIGUOUS_ZONE`, exit 3, with candidates |
-| EX-24 | Rule boundary inside a DST gap | `book` | rule-boundary policy A-07: a nonexistent rule boundary resolves forward and emits `DST_RULE_ADJUSTED` |
+| EX-24 | Rule boundary inside a DST gap | `book` | rule-boundary policy A-07: a nonexistent rule boundary resolves to the transition instant and emits `DST_RULE_ADJUSTED` |
 
 ---
 
@@ -1398,7 +1398,7 @@ Zones are validated before Luxon sees them (C11), in order: `request.timeZone`, 
 
 ### EX-24 — Rule boundary inside a DST gap
 
-**Covers:** rule-boundary policy A-07: a nonexistent rule boundary resolves forward and emits `DST_RULE_ADJUSTED`
+**Covers:** rule-boundary policy A-07/G34: a nonexistent rule boundary resolves to the transition instant and emits `DST_RULE_ADJUSTED`
 
 **Input**
 
@@ -1413,18 +1413,18 @@ Zones are validated before Luxon sees them (C11), in order: `request.timeZone`, 
 - `alice` (`UTC`):
   - owner 2025-03-09 sunday 00:00–24:00: 2025-03-09 00:00 (+00:00) → 2025-03-10 00:00 (+00:00) = `[2025-03-09T00:00:00Z, 2025-03-10T00:00:00Z]`
 - `bob` (`America/New_York`):
-  - owner 2025-03-09 sunday 02:30–10:00: 2025-03-09 02:30 (-04:00) [nonexistent → resolved 2025-03-09 03:30] → 2025-03-09 10:00 (-04:00) = `[2025-03-09T07:30:00Z, 2025-03-09T14:00:00Z]`
+  - owner 2025-03-09 sunday 02:30–10:00: 2025-03-09 02:30 [nonexistent → resolved to the transition instant 2025-03-09T07:00:00Z] → 2025-03-09 10:00 (-04:00) = `[2025-03-09T07:00:00Z, 2025-03-09T14:00:00Z]`
 
 **Merged availability** (blackouts removed, touching/overlapping instances merged; computed over the expanded search range, so a continuous run is cut at the range ends)
 
 - `alice`: `[2025-03-09T00:00:00Z, 2025-03-10T00:00:00Z]`
-- `bob`: `[2025-03-09T07:30:00Z, 2025-03-09T14:00:00Z]`
+- `bob`: `[2025-03-09T07:00:00Z, 2025-03-09T14:00:00Z]`
 
 **Evaluation**
 
-`bob`’s Sunday rule `02:30–10:00` America/New_York on 2025-03-09: `02:30` does not exist (gap `02:00–03:00`), so the boundary resolves forward to `03:30 EDT` = `07:30Z`; `10:00 EDT` = `14:00Z`. Instance `[07:30Z, 14:00Z]`. Request `04:00–05:00 EDT` = `[08:00Z, 09:00Z]` ⊆ ✔. `alice` (UTC) ✔. → `book`, with an informational `DST_RULE_ADJUSTED` reason because the adjusted instance overlaps the request.
+`bob`’s Sunday rule `02:30–10:00` America/New_York on 2025-03-09: `02:30` does not exist (gap `02:00–03:00`), so the boundary resolves to the transition instant `03:00 EDT` = `07:00Z` (G34); `10:00 EDT` = `14:00Z`. Instance `[07:00Z, 14:00Z]`. Request `04:00–05:00 EDT` = `[08:00Z, 09:00Z]` ⊆ ✔. `alice` (UTC) ✔. → `book`, with an informational `DST_RULE_ADJUSTED` reason because the adjusted instance overlaps the request.
 
-Policy A-07 (needs the user’s approval): rule boundaries in a gap resolve forward; in an overlap they resolve to the **earlier** occurrence. The reason is attached only when the adjusted instance overlaps the requested interval.
+Policy A-07 as amended by G34: a rule boundary in a gap resolves to the transition instant; in an overlap it resolves to the **earlier** occurrence. The reason is attached only when the adjusted instance overlaps the requested interval.
 
 **Output** (`evaluate`)
 
@@ -1434,7 +1434,7 @@ Policy A-07 (needs the user’s approval): rule boundaries in a gap resolve forw
   "decision": "book",
   "requested": { "start": "2025-03-09T04:00:00-04:00", "end": "2025-03-09T05:00:00-04:00", "startUtc": "2025-03-09T08:00:00Z", "endUtc": "2025-03-09T09:00:00Z" },
   "slots": [{ "start": "2025-03-09T04:00:00-04:00", "end": "2025-03-09T05:00:00-04:00", "startUtc": "2025-03-09T08:00:00Z", "endUtc": "2025-03-09T09:00:00Z" }],
-  "reasons": [{ "code": "DST_RULE_ADJUSTED", "participantId": "bob", "message": "bob: rule boundary 2025-03-09T02:30 in America/New_York is nonexistent; resolved to 2025-03-09T07:30:00Z." }]
+  "reasons": [{ "code": "DST_RULE_ADJUSTED", "participantId": "bob", "message": "bob: rule boundary 2025-03-09T02:30 in America/New_York is nonexistent; resolved to 2025-03-09T07:00:00Z." }]
 }
 ```
 

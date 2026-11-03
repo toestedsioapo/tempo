@@ -94,7 +94,7 @@ Each example is also run through `suggest` and `explain` for structural consiste
 | CORE-35 | Gap detection per fixture zone | `America/New_York 2025-03-09 02:00–02:59`, `Europe/Berlin 2025-03-30 02:30`, `Australia/Sydney 2025-10-05 02:30`, `Australia/Lord_Howe 2025-10-05 02:15` ⇒ nonexistent; `Asia/Manila` never |
 | CORE-36 | Overlap detection per fixture zone | `America/New_York 2025-11-02 01:00–01:59`, `Europe/Berlin 2025-10-26 02:30`, `Australia/Sydney 2025-04-06 02:30`, `Australia/Lord_Howe 2025-04-06 01:45` ⇒ ambiguous; `Asia/Manila` never |
 | CORE-37 | Times next to a transition | `New_York 2025-03-09 01:59` and `03:00`, `2025-11-02 00:59` and `02:00`, `Lord_Howe 2025-10-05 02:30` are valid and unique |
-| CORE-38 | Rule-boundary policy (A-07) | gap boundary ⇒ forward; overlap boundary ⇒ earlier occurrence; `DST_RULE_ADJUSTED` only when the adjusted instance overlaps the request |
+| CORE-38 | Rule-boundary policy (A-07) | gap boundary ⇒ transition instant (G34); overlap boundary ⇒ earlier occurrence; rule wholly inside a gap ⇒ dropped; `DST_RULE_ADJUSTED` only when the adjusted instance overlaps the request |
 | CORE-39 | Request `end` in a gap/overlap | error with `details.field: "request.end"` |
 | CORE-40 | Purity | lint/static check: core imports only `luxon` and `zod`, uses no forbidden globals; the compiled bundle contains no `Date.now` |
 | CORE-41 | Schema drift | regenerating `schema/rules.schema.json` reproduces the committed file; every `fixtures/examples/*.json` input validates against it |

@@ -68,7 +68,7 @@ tempo/
 1. **Luxon vs Temporal.** Luxon (C12).
 2. **Zone-abbreviation policy.** Accept IANA always, plus `UTC` and `GMT`. Abbreviations in the SPEC §7 table → `AMBIGUOUS_ZONE`; anything else unknown → `INVALID_ZONE`.
 3. **Injecting "now".** `now` is a required option in core (ISO-8601 UTC string); the CLI supplies the real clock; tests supply fixed instants.
-4. **DST policy.** Nonexistent **and** ambiguous request times are rejected with explicit codes (C10). Rule boundaries: gap → forward, overlap → earlier occurrence, with `DST_RULE_ADJUSTED` (G28).
+4. **DST policy.** Nonexistent **and** ambiguous request times are rejected with explicit codes (C10). Rule boundaries: gap → the transition instant (G34), overlap → earlier occurrence, with `DST_RULE_ADJUSTED` (G28).
 5. **Interval algebra and ranking.** Absolute-distance ranking from the requested start on a 15-minute lattice, ties → earlier, then greedy selection that skips overlapping candidates (C9, G22).
 
 ### Exit codes (D14, G24)

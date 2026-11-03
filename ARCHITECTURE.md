@@ -112,7 +112,7 @@ Function names are assumption A-03; the `needs_clarification` decision of earlie
 ### ADR 4 — DST policy (C10)
 
 **Decision:** For the **request’s** wall times (`start`, `end`): a **nonexistent** time (spring-forward gap) and an **ambiguous** time (fall-back overlap) are **both rejected** with an explicit code (`DST_NONEXISTENT_LOCAL_TIME`, `DST_AMBIGUOUS_LOCAL_TIME`), CLI exit 2 (A-05). Detection is a Luxon round-trip check, plus a probe of the neighbouring offset for the overlap.
-For **availability-rule boundaries** (A-07, approved as G28): gap → forward, overlap → earlier occurrence, with an informational `DST_RULE_ADJUSTED` reason when it touches the request.
+For **availability-rule boundaries** (A-07, approved as G28): gap → the transition instant (first instant after the gap, G34), overlap → earlier occurrence, with an informational `DST_RULE_ADJUSTED` reason when it touches the request.
 **Why:** “Never guess.” Silent shifting is the bug class Tempo exists to prevent.
 **Consequences:** Callers resubmit with an unambiguous time. `details` contains everything needed (transition instant, both candidate instants). Fixtures cover US, EU, Australia/Sydney, Australia/Lord_Howe, and Asia/Manila (no DST), plus wrap-across-transition.
 
