@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -110,10 +110,18 @@ describe("repo config", () => {
     expect(release).toContain("provenance");
     const tokenPattern = /NPM_TOKEN|NODE_AUTH_TOKEN|_authToken/;
     expect(release).not.toMatch(tokenPattern);
-    // ci.yml is asserted to exist in Task 11; skipped here while absent.
-    if (existsSync(resolve(root, ".github/workflows/ci.yml"))) {
-      expect(readText(".github/workflows/ci.yml")).not.toMatch(tokenPattern);
-    }
+    expect(readText(".github/workflows/ci.yml")).not.toMatch(tokenPattern);
+  });
+
+  it("coverage: script, provider dependency, no thresholds, ignored output", () => {
+    const pkg = rootPackage();
+    const scripts = pkg["scripts"];
+    expect(isRecord(scripts) ? scripts["test:coverage"] : undefined).toBeTypeOf("string");
+    const dev = pkg["devDependencies"];
+    expect(isRecord(dev) ? dev["@vitest/coverage-v8"] : undefined).toBeTypeOf("string");
+    expect(readText("vitest.config.ts")).not.toContain("thresholds");
+    const lines = readText(".gitignore").split(/\r?\n/).map((l) => l.trim());
+    expect(lines).toContain("coverage/");
   });
 
   describe("CI workflow", () => {
@@ -143,6 +151,19 @@ describe("repo config", () => {
       ].map((cmd) => runs.indexOf(cmd));
       expect(order.every((i) => i >= 0)).toBe(true);
       expect(order).toEqual([...order].sort((a, b) => a - b));
+    });
+
+    it("CI: coverage runs after test and before build, and is uploaded", () => {
+      const runs = runLines();
+      const test = runs.indexOf("run: pnpm test");
+      const cov = runs.indexOf("run: pnpm test:coverage");
+      const build = runs.indexOf("run: pnpm build");
+      expect(cov).toBeGreaterThan(test);
+      expect(cov).toBeLessThan(build);
+      const text = ci();
+      expect(text).toContain("actions/upload-artifact");
+      expect(text).toMatch(/^\s*path:[\s\S]*?coverage\//m);
+      expect(text).toContain("if-no-files-found: error");
     });
 
     it("CI: fail-fast is off and permissions are read-only", () => {

@@ -19,3 +19,5 @@ out/
 test-results/
 playwright-report/
 .next/
+.stryker-tmp/
+reports/
