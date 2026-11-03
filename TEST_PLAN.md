@@ -118,7 +118,7 @@ Properties are checked against the independent oracle’s definition of availabi
 | INV-07 | **Participant-swap symmetry (E17):** any permutation of `participants` gives an identical result |
 | INV-08 | **Blackout monotonicity (E17):** adding a blackout never turns `counter_offer` into `book` and never adds a fitting candidate (the set of fitting lattice points only shrinks) |
 | INV-09 | Round trip: formatting `startUtc` in the requester zone and parsing the result gives the same instant |
-| INV-10 | **Never throws:** for arbitrary JSON values (including `null`, huge numbers, deep nesting, hostile strings) core returns `{ ok: true … }` or `{ ok: false, error }` with a code from the closed enum |
+| INV-10 | **Never throws:** for arbitrary JSON values (including `null`, huge numbers, deep nesting, hostile strings) core returns `{ ok: true … }` or `{ ok: false, error }` with a code from the closed enum (`INVALID_INPUT` and `INTERNAL_ERROR` are both allowed outcomes, G33) |
 | INV-11 | Equivalent request, different zone: restating the same instants in another zone (when its wall times are unambiguous) gives the same decision and the same UTC slots |
 | INV-12 | Overnight rules (`end < start`) never crash; each instance is owned by its start day; its real length equals the nominal wrap length plus the DST delta within the interval |
 | INV-13 | Availability monotonicity: adding an availability rule never turns `book` into `counter_offer` |

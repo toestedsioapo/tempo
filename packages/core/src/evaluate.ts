@@ -3,7 +3,7 @@ import { findDstError } from "./dst.js";
 import { applyBlackouts, contains, expandInstances, findInvalidInterval, mergeSpans } from "./intervals.js";
 import { internalError } from "./internal-error.js";
 import type { Span } from "./intervals.js";
-import { parseNegotiationRequest } from "./parse.js";
+import { guardedRun } from "./guard.js";
 import { requestedSpan, timeGate } from "./gates.js";
 import { formatUtc, toIsoSlot } from "./render.js";
 import { inBlackout, inPast, insufficientNotice, outsideAvailability } from "./reasons.js";
@@ -60,18 +60,8 @@ function compute(request: ResolvedNegotiationRequest): NegotiationResult {
 
 /**
  * SPEC §4.1. Typed for callers, but parses and validates at runtime (A-54, G32): untyped or
- * cast input yields INVALID_INPUT. Errors are values (D13): never throws.
+ * cast input yields INVALID_INPUT. Errors are values (D13): never throws; exceptions are split by G33 (see guard.ts).
  */
 export function evaluate(input: NegotiationRequest): NegotiationResult {
-  try {
-    const parsed = parseNegotiationRequest(input);
-    if (!parsed.ok) return parsed;
-    return compute(parsed.value);
-  } catch {
-    const message = "Input could not be read.";
-    return {
-      ok: false,
-      error: { code: "INVALID_INPUT", message, details: { issues: [{ path: "$", message }] } },
-    };
-  }
+  return guardedRun(input, compute);
 }

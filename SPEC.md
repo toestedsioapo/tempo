@@ -18,7 +18,7 @@ Tempo does **not** read calendars, parse natural language, expand recurring meet
 ## 2. Design principles
 
 1. **Pure core.** `@marvinliem/tempo-core` has no clock, network, filesystem, environment or randomness. `now` is an input. (`CLAUDE.md` hard rules.)
-2. **Errors are values (D13).** Core never throws. Every function returns `{ ok: true, … }` or `{ ok: false, error }`. The CLI maps errors to exit codes.
+2. **Errors are values (D13).** Core never throws (an unexpected exception is caught and returned as `INVALID_INPUT` if it happens while reading input, `INTERNAL_ERROR` after the input was accepted; G33). Every function returns `{ ok: true, … }` or `{ ok: false, error }`. The CLI maps errors to exit codes.
 3. **Never guess.** Ambiguous zone abbreviations, nonexistent local times and ambiguous local times are reported, not resolved (C10, C11).
 4. **Absolute-time algebra.** All comparisons happen on UTC instants. Wall-clock times are converted once, with the IANA database, at the edges (C5).
 5. **Deterministic.** Same input ⇒ byte-identical output, including ordering and tie-breaks.
@@ -130,7 +130,7 @@ type ErrorResult = {
 | `INVALID_INTERVAL` | 2 | availability rule with `start == end` (C5) | `field`, `start`, `end` |
 | `DST_NONEXISTENT_LOCAL_TIME` | 2 | request `start` or `end` falls in a spring-forward gap (C10) | `field`, `localTime`, `timeZone`, `transitionUtc`, `offsetBefore`, `offsetAfter` |
 | `DST_AMBIGUOUS_LOCAL_TIME` | 2 | request `start` or `end` falls in a fall-back overlap (C10) | `field`, `localTime`, `timeZone`, `candidates: [{ utc, offset }]` |
-| `INTERNAL_ERROR` | 4 (A-12) | a bug; only the CLI wrapper produces this, core never throws | — |
+| `INTERNAL_ERROR` | 4 (A-12) | a bug. Core returns it as a last resort when an exception occurs after the input was accepted (G33); the CLI also produces it for failures outside core | — |
 
 DST errors are input errors rather than a `counter_offer` because ranking (C9) needs a requested start instant, and a nonexistent or ambiguous wall time has none (A-05).
 
