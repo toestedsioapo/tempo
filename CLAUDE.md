@@ -43,7 +43,7 @@ docs/plans/     milestone plans (M1.md, …)
 pnpm install
 pnpm build          # all packages
 pnpm gen:schema     # zod -> schema/rules.schema.json
-pnpm --filter @marvinliem/tempo dev -- explain examples/demo.json --json
+pnpm check:names    # npm name gate (read-only GET to the registry)
 ```
 
 ## Test command
@@ -51,6 +51,7 @@ pnpm --filter @marvinliem/tempo dev -- explain examples/demo.json --json
 ```
 pnpm test           # vitest (unit + property)
 pnpm test:watch
+pnpm test:coverage  # v8 coverage report, no threshold in M1 (A-41)
 pnpm typecheck
 pnpm lint
 ```

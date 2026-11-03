@@ -41,17 +41,17 @@ Six milestones over about six weeks, ending in the **first release, `v0.1.0`** o
 5. **Types and Zod schemas, test-first:** CORE-01 … CORE-07, CORE-41 and CORE-42 (request `start == end`, G23); `pnpm gen:schema` produces `schema/rules.schema.json`; Zod major version chosen here (A-22).
 6. **CI workflow:** Node 24 and 26 × ubuntu-latest and windows-latest; frozen-lockfile install, typecheck, lint, test, build.
 7. **Repo checks:** CFG-01 … CFG-08, CFG-10, CFG-11 (CFG-09 comes with `SKILL.md`).
-8. Housekeeping from A-19: decide whether planning docs move into `docs/` (ADRs stay inside ARCHITECTURE.md unless asked).
+8. Housekeeping from A-19: decide whether planning docs move into `docs/` (ADRs stay inside ARCHITECTURE.md unless asked). **Decided (A-30): the planning docs stay at the repo root; only `docs/plans/` is new.**
 
 **Definition of done**
 
-- [ ] `pnpm install --frozen-lockfile` works on Linux and Windows.
-- [ ] `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build` pass; `pnpm test` runs the schema and repo tests, not an empty suite.
-- [ ] CI green on all four matrix jobs.
-- [ ] `packages/*/src` contains only the new test-first schema/type code; the old files are gone.
-- [ ] `pnpm gen:schema` is reproducible (CORE-41); `schema/rules.schema.json` is generated, never hand-edited.
-- [ ] `pnpm check:names` passed (or new names agreed).
-- [ ] `CLAUDE.md` “Build command” and “Test command” sections match reality.
+- [ ] `pnpm install --frozen-lockfile` works on Linux and Windows. Windows proved by a fresh clone, `pnpm install --frozen-lockfile` exit 0 (`.superpowers/sdd/M1/task-12-verification.md`). **Open until the Task 12 push gate / first CI run** (Linux).
+- [x] `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build` pass; `pnpm test` runs the schema and repo tests, not an empty suite. Proved by those four commands on a fresh clone (all exit 0); `pnpm test` runs `tests/` (repo), `packages/core` and `packages/cli` suites, counts in `.superpowers/sdd/M1/task-12-verification.md`.
+- [ ] CI green on all four matrix jobs. **Open until the Task 12 push gate / first CI run** (`.github/workflows/ci.yml` exists; nothing has been pushed).
+- [x] `packages/*/src` contains only the new test-first schema/type code; the old files are gone. Proved by `git ls-files packages` (only `core/src/{index,issues,parse,schema,types}.ts` with tests, and `cli/src/exit-codes.ts`) and the absence of `verify_types.ts` and `tsconfig.verify.json` at the root.
+- [x] `pnpm gen:schema` is reproducible (CORE-41); `schema/rules.schema.json` is generated, never hand-edited. Proved by `pnpm gen:schema` followed by an empty `git status --short`, and by `packages/core/test/schema-drift.test.ts` inside `pnpm test`.
+- [x] `pnpm check:names` passed (or new names agreed). Proved by `pnpm check:names` (exit 0, both names available), also covered by `tests/check-names.test.ts` for the logic.
+- [x] `CLAUDE.md` “Build command” and “Test command” sections match reality. Proved by `CLAUDE.md` (lists `pnpm gen:schema`, `pnpm check:names`, `pnpm test:coverage`, all defined in the root `package.json` scripts).
 
 ---
 
