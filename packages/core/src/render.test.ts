@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DateTime } from "luxon";
-import { formatUtc, toIsoSlot } from "./render.js";
+import { formatOffset, formatUtc, toIsoSlot } from "./render.js";
 
 const ms = (iso: string): number => DateTime.fromISO(iso, { zone: "utc" }).toMillis();
 const slot = (s: string, e: string) => ({ startMs: ms(s), endMs: ms(e) });
@@ -28,4 +28,13 @@ describe("toIsoSlot (SPEC 4.9)", () => {
     expect(toIsoSlot(slot("2025-01-06T14:30:00Z", "2025-01-06T15:30:00Z"), "Asia/Kathmandu").start).toBe(
       "2025-01-06T20:15:00+05:45",
     ));
+});
+
+describe("formatOffset", () => {
+  it.each([
+    [-300, "-05:00"],
+    [345, "+05:45"],
+    [0, "+00:00"],
+    [630, "+10:30"],
+  ] as const)("%i -> %s", (m, s) => expect(formatOffset(m)).toBe(s));
 });

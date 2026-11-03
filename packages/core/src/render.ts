@@ -21,3 +21,11 @@ export function toIsoSlot(span: Span, zone: ZoneId): IsoSlot {
     endUtc: formatUtc(span.endMs),
   };
 }
+
+/** Offset minutes -> "+05:45" / "-05:00" / "+00:00". */
+export function formatOffset(minutes: number): string {
+  const abs = Math.abs(minutes);
+  const hh = String(Math.floor(abs / 60)).padStart(2, "0");
+  const mm = String(abs % 60).padStart(2, "0");
+  return `${minutes < 0 ? "-" : "+"}${hh}:${mm}`;
+}

@@ -13,6 +13,8 @@ export default defineConfig({
         "src/reasons.ts",
         "src/gates.ts",
         "src/evaluate.ts",
+        "src/dst.ts",
+        "src/internal-error.ts",
       ],
       thresholds: { lines: 95, branches: 95 },
     },

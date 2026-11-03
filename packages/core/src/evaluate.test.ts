@@ -371,24 +371,47 @@ describe("determinism and ordering", () => {
   });
 });
 
-describe("DST-gap request times before M2b (A-53)", () => {
-  // SPEC §4.1 step 4 / C10 (M2b) will reject these with DST_NONEXISTENT_LOCAL_TIME.
-  it.todo("M2b/C10: NY 2025-03-09 02:30-03:15 is DST_NONEXISTENT_LOCAL_TIME");
-  it.todo("M2b/C10: NY 2025-03-09 02:30-03:30 is DST_NONEXISTENT_LOCAL_TIME");
-  it("zero-length span with a blacked-out party gives OUTSIDE_AVAILABILITY, not INVALID_INPUT", () => {
+describe("DST request times (C10, SPEC 4.1)", () => {
+  const nyParty = { id: "a", zone: "America/New_York", rules: { sunday: [day("00:00", "24:00")] } };
+  const other = { id: "z", zone: "UTC", rules: { sunday: [day("00:00", "24:00")] } };
+  const dst = (r: ReturnType<typeof evaluate>) => (r.ok ? null : { code: r.error.code, details: r.error.details });
+  it.each([
+    ["02:30", "03:15"],
+    ["02:30", "03:30"],
+  ] as const)("NY 2025-03-09 %s-%s is DST_NONEXISTENT_LOCAL_TIME on request.start", (start, end) => {
+    const r = run(scenario({ date: "2025-03-09", start, end, zone: "America/New_York", parties: [nyParty, other] }));
+    expect(dst(r)).toMatchObject({ code: "DST_NONEXISTENT_LOCAL_TIME", details: { field: "request.start" } });
+  });
+  it("request.start error wins over request.end", () => {
+    const r = run(scenario({ date: "2025-03-09", start: "02:30", end: "02:45", zone: "America/New_York", parties: [nyParty, other] }));
+    expect(dst(r)).toMatchObject({ details: { field: "request.start" } });
+  });
+  it("an ambiguous end after a valid start is DST_AMBIGUOUS_LOCAL_TIME on request.end", () => {
+    const r = run(scenario({ date: "2025-11-02", start: "00:30", end: "01:30", zone: "America/New_York", parties: [nyParty, other] }));
+    expect(dst(r)).toMatchObject({ code: "DST_AMBIGUOUS_LOCAL_TIME", details: { field: "request.end", localTime: "2025-11-02T01:30" } });
+  });
+  it("INVALID_INTERVAL wins over a DST error (SPEC 4.1)", () => {
     const r = run(
       scenario({
         date: "2025-03-09",
         start: "02:30",
         end: "03:30",
         zone: "America/New_York",
-        parties: [
-          utc("a", { sunday: [day("07:00", "07:30")] }, ["2025-03-09"]),
-          utc("b", { sunday: [day("00:00", "24:00")] }),
-        ],
+        parties: [{ id: "a", zone: "UTC", rules: { sunday: [day("09:00", "09:00")] } }, other],
       }),
     );
-    expect(r.ok && r.decision).toBe("counter_offer");
-    expect(codes(r)).toEqual(["OUTSIDE_AVAILABILITY:a"]);
+    expect(dst(r)).toMatchObject({ code: "INVALID_INTERVAL" });
+  });
+  it("an ambiguous zone wins over a DST error (SPEC 4.1)", () => {
+    const r = run(
+      scenario({
+        date: "2025-03-09",
+        start: "02:30",
+        end: "03:30",
+        zone: "America/New_York",
+        parties: [{ id: "a", zone: "IST", rules: { sunday: [day("00:00", "24:00")] } }, other],
+      }),
+    );
+    expect(dst(r)).toMatchObject({ code: "AMBIGUOUS_ZONE" });
   });
 });

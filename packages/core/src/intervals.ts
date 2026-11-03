@@ -1,15 +1,13 @@
 import { DateTime } from "luxon";
+import { wallTimeToMs } from "./dst.js";
 import { DAY_NAMES } from "./schema.js";
 import type {
-  ClockTime,
   DayName,
-  EndTime,
   ErrorResult,
   Interval,
   LocalDate,
   PartyRules,
   ResolvedNegotiationRequest,
-  ZoneId,
 } from "./types.js";
 
 export type Span = { readonly startMs: number; readonly endMs: number };
@@ -18,34 +16,6 @@ export type Instance = Span & {
   readonly weekday: DayName;
   readonly rule: Interval;
 };
-
-const DAY_MS = 24 * 3600_000;
-const MIN_MS = 60_000;
-
-const offsetAt = (t: number, zone: ZoneId): number => DateTime.fromMillis(t, { zone }).offset;
-
-/**
- * Wall reading -> instant, with Tempo's own DST policy (A-53): overlap -> earlier instant,
- * gap -> forward using the pre-transition offset. Does not rely on Luxon's default resolution.
- * "24:00" means the next date at 00:00.
- */
-export function wallTimeToMs(date: LocalDate, time: ClockTime | EndTime, zone: ZoneId): number {
-  const base = DateTime.fromISO(date, { zone: "utc" });
-  const wall = time === "24:00" ? base.plus({ days: 1 }) : base.set({
-    hour: Number(time.slice(0, 2)),
-    minute: Number(time.slice(3, 5)),
-  });
-  const w = wall.toMillis();
-  const oBefore = offsetAt(w - DAY_MS, zone);
-  const oAfter = offsetAt(w + DAY_MS, zone);
-  const valid: number[] = [];
-  for (const o of new Set([oBefore, oAfter])) {
-    const t = w - o * MIN_MS;
-    if (offsetAt(t, zone) === o) valid.push(t);
-  }
-  if (valid.length > 0) return Math.min(...valid);
-  return w - oBefore * MIN_MS;
-}
 
 export function expandInstances(party: PartyRules, fromMs: number, toMs: number): Instance[] {
   const zone = party.timeZone;

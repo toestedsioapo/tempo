@@ -82,7 +82,9 @@ describe("repo config", () => {
     const found = walk("packages").filter((f) => f.split("/").pop() === "dts.ts");
     expect(found).toEqual([]);
   });
-  it.todo("dst.ts exists in core (M2b)");
+  it("dst.ts exists in core", () => {
+    expect(walk("packages/core/src").some((f) => f.endsWith("/dst.ts"))).toBe(true);
+  });
   it.todo("SKILL.md exists at the repo root (M4)");
 
   it("licence: LICENSE is MIT with Marvin Liemor as holder", () => {
