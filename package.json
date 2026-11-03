@@ -18,10 +18,13 @@
     "check:names": "tsx scripts/check-names.ts"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^24.19.2",
+    "eslint": "^10.14.0",
     "rimraf": "^6.1.3",
     "tsx": "^4.23.15",
     "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.1",
     "vitest": "^5.0.5"
   }
 }
