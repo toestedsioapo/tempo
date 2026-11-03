@@ -35,8 +35,8 @@ export const UtcInstantSchema = z
 
 export const DayNameSchema = z.enum(DAY_NAMES);
 
-/** IANA zone id; real-zone validation happens in the engine (A-37). */
-export const ZoneIdSchema = z.string().min(1);
+/** IANA zone id; real-zone validation happens in zones.ts (A-51). */
+export const ZoneIdSchema = z.string();
 
 /** One wall-clock window. `end < start` wraps midnight; `start == end` is allowed in rules (A-37). */
 export const IntervalSchema = z.strictObject({

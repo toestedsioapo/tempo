@@ -93,9 +93,9 @@ describe("DayNameSchema", () => {
 });
 
 describe("ZoneIdSchema", () => {
-  it("accepts non-empty strings, rejects empty", () => {
+  it("accepts any string; zone validity is checked in zones.ts (A-51)", () => {
     expect(ZoneIdSchema.safeParse("Europe/Berlin").success).toBe(true);
-    expect(ZoneIdSchema.safeParse("").success).toBe(false);
+    expect(ZoneIdSchema.safeParse("").success).toBe(true);
   });
 });
 
