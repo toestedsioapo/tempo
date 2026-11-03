@@ -100,3 +100,98 @@ export const NegotiationRequestSchema = z.strictObject({
     }),
   options: OptionsSchema,
 });
+
+// ---------------------------------------------------------------------------
+// Output (SPEC §3.3 - §3.6). Output objects are strict so drift fails loudly.
+// ---------------------------------------------------------------------------
+
+/** Reasons that may appear in `reasons`. `OK` is check-only and deliberately absent. */
+export const ReasonCodeSchema = z.enum([
+  "IN_PAST",
+  "INSUFFICIENT_NOTICE",
+  "OUTSIDE_AVAILABILITY",
+  "IN_BLACKOUT",
+  "NO_SLOTS_IN_HORIZON",
+  "DST_RULE_ADJUSTED",
+]);
+
+/** Per-participant check outcome in `explain`. */
+export const CheckReasonCodeSchema = z.enum(["OK", "OUTSIDE_AVAILABILITY", "IN_BLACKOUT"]);
+
+export const ErrorCodeSchema = z.enum([
+  "INVALID_INPUT",
+  "INVALID_ZONE",
+  "AMBIGUOUS_ZONE",
+  "INVALID_INTERVAL",
+  "DST_NONEXISTENT_LOCAL_TIME",
+  "DST_AMBIGUOUS_LOCAL_TIME",
+  "INTERNAL_ERROR",
+]);
+
+/** ISO-8601 local date-time with a numeric offset or `Z`, e.g. `2025-01-06T09:30:00-05:00`. */
+export const IsoOffsetSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d:[0-5]\d(Z|[+-]([01]\d|2[0-3]):[0-5]\d)$/);
+
+export const IsoSlotSchema = z.strictObject({
+  start: IsoOffsetSchema,
+  end: IsoOffsetSchema,
+  startUtc: UtcInstantSchema,
+  endUtc: UtcInstantSchema,
+});
+
+export const ReasonSchema = z.strictObject({
+  code: ReasonCodeSchema,
+  participantId: z.string().optional(),
+  message: z.string(),
+});
+
+export const ErrorResultSchema = z.strictObject({
+  ok: z.literal(false),
+  error: z.strictObject({
+    code: ErrorCodeSchema,
+    message: z.string(),
+    details: z.record(z.string(), z.unknown()).optional(),
+  }),
+});
+
+export const NegotiationOkSchema = z.strictObject({
+  ok: z.literal(true),
+  decision: z.enum(["book", "counter_offer"]),
+  requested: IsoSlotSchema,
+  slots: z.array(IsoSlotSchema),
+  reasons: z.array(ReasonSchema),
+});
+
+export const NegotiationResultSchema = z.union([NegotiationOkSchema, ErrorResultSchema]);
+
+export const RuleRefSchema = z.strictObject({
+  weekday: DayNameSchema,
+  start: ClockTimeSchema,
+  end: EndTimeSchema,
+  ownerDate: LocalDateSchema,
+});
+
+export const ParticipantCheckSchema = z.strictObject({
+  participant: z.string(),
+  ruleMatched: RuleRefSchema.nullable(),
+  pass: z.boolean(),
+  reasonCode: CheckReasonCodeSchema,
+});
+
+export const CandidateTraceSchema = z.strictObject({
+  slot: IsoSlotSchema,
+  pass: z.boolean(),
+  timeGate: z.enum(["OK", "IN_PAST", "INSUFFICIENT_NOTICE"]),
+  checks: z.array(ParticipantCheckSchema),
+});
+
+const ExplainOkSchema = z.strictObject({
+  ok: z.literal(true),
+  decision: z.enum(["book", "counter_offer"]),
+  reasons: z.array(ReasonSchema),
+  requested: CandidateTraceSchema,
+  candidates: z.array(CandidateTraceSchema),
+});
+
+export const ExplainResultSchema = z.union([ExplainOkSchema, ErrorResultSchema]);
