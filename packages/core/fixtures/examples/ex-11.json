@@ -1,0 +1,63 @@
+{
+  "id": "EX-11",
+  "entry": "evaluate",
+  "input": {
+    "request": {
+      "date": "2025-03-09",
+      "start": "09:00",
+      "end": "12:00",
+      "timeZone": "America/New_York"
+    },
+    "participants": [
+      {
+        "partyId": "alice",
+        "timeZone": "America/New_York",
+        "weeklyRules": {
+          "sunday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ]
+        }
+      },
+      {
+        "partyId": "bob",
+        "timeZone": "Australia/Sydney",
+        "weeklyRules": {
+          "sunday": [
+            {
+              "start": "15:00",
+              "end": "23:00"
+            }
+          ]
+        }
+      }
+    ],
+    "options": {
+      "now": "2025-03-01T00:00:00Z"
+    }
+  },
+  "expected": {
+    "ok": true,
+    "decision": "counter_offer",
+    "requested": {
+      "start": "2025-03-09T09:00:00-04:00",
+      "end": "2025-03-09T12:00:00-04:00",
+      "startUtc": "2025-03-09T13:00:00Z",
+      "endUtc": "2025-03-09T16:00:00Z"
+    },
+    "slots": [],
+    "reasons": [
+      {
+        "code": "OUTSIDE_AVAILABILITY",
+        "participantId": "bob",
+        "message": "bob: requested interval is not inside any availability interval."
+      },
+      {
+        "code": "NO_SLOTS_IN_HORIZON",
+        "message": "No slot found within 14 days of the requested start."
+      }
+    ]
+  }
+}

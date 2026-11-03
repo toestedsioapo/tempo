@@ -1,0 +1,56 @@
+{
+  "id": "EX-12",
+  "entry": "evaluate",
+  "input": {
+    "request": {
+      "date": "2025-03-09",
+      "start": "02:30",
+      "end": "03:30",
+      "timeZone": "America/New_York"
+    },
+    "participants": [
+      {
+        "partyId": "alice",
+        "timeZone": "America/New_York",
+        "weeklyRules": {
+          "sunday": [
+            {
+              "start": "00:00",
+              "end": "24:00"
+            }
+          ]
+        }
+      },
+      {
+        "partyId": "bob",
+        "timeZone": "UTC",
+        "weeklyRules": {
+          "sunday": [
+            {
+              "start": "00:00",
+              "end": "24:00"
+            }
+          ]
+        }
+      }
+    ],
+    "options": {
+      "now": "2025-03-01T00:00:00Z"
+    }
+  },
+  "expected": {
+    "ok": false,
+    "error": {
+      "code": "DST_NONEXISTENT_LOCAL_TIME",
+      "message": "2025-03-09T02:30 does not exist in America/New_York (clocks skip forward).",
+      "details": {
+        "field": "request.start",
+        "localTime": "2025-03-09T02:30",
+        "timeZone": "America/New_York",
+        "transitionUtc": "2025-03-09T07:00:00Z",
+        "offsetBefore": "-05:00",
+        "offsetAfter": "-04:00"
+      }
+    }
+  }
+}

@@ -1,0 +1,129 @@
+{
+  "id": "EX-04",
+  "entry": "evaluate",
+  "input": {
+    "request": {
+      "date": "2025-08-11",
+      "start": "10:00",
+      "end": "11:00",
+      "timeZone": "America/New_York"
+    },
+    "participants": [
+      {
+        "partyId": "alice",
+        "timeZone": "America/New_York",
+        "weeklyRules": {
+          "monday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "thursday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "friday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ]
+        },
+        "blackouts": [
+          "2025-08-11"
+        ]
+      },
+      {
+        "partyId": "bob",
+        "timeZone": "Europe/London",
+        "weeklyRules": {
+          "monday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "thursday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "friday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ]
+        }
+      }
+    ],
+    "options": {
+      "now": "2025-08-08T12:00:00Z"
+    }
+  },
+  "expected": {
+    "ok": true,
+    "decision": "counter_offer",
+    "requested": {
+      "start": "2025-08-11T10:00:00-04:00",
+      "end": "2025-08-11T11:00:00-04:00",
+      "startUtc": "2025-08-11T14:00:00Z",
+      "endUtc": "2025-08-11T15:00:00Z"
+    },
+    "slots": [
+      {
+        "start": "2025-08-12T09:00:00-04:00",
+        "end": "2025-08-12T10:00:00-04:00",
+        "startUtc": "2025-08-12T13:00:00Z",
+        "endUtc": "2025-08-12T14:00:00Z"
+      },
+      {
+        "start": "2025-08-12T10:00:00-04:00",
+        "end": "2025-08-12T11:00:00-04:00",
+        "startUtc": "2025-08-12T14:00:00Z",
+        "endUtc": "2025-08-12T15:00:00Z"
+      },
+      {
+        "start": "2025-08-12T11:00:00-04:00",
+        "end": "2025-08-12T12:00:00-04:00",
+        "startUtc": "2025-08-12T15:00:00Z",
+        "endUtc": "2025-08-12T16:00:00Z"
+      }
+    ],
+    "reasons": [
+      {
+        "code": "IN_BLACKOUT",
+        "participantId": "alice",
+        "message": "alice: availability is blocked by blackout date 2025-08-11."
+      }
+    ]
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "id": "EX-23",
+  "entry": "evaluate",
+  "input": {
+    "request": {
+      "date": "2025-01-06",
+      "start": "09:00",
+      "end": "10:00",
+      "timeZone": "America/New_York"
+    },
+    "participants": [
+      {
+        "partyId": "alice",
+        "timeZone": "America/New_York",
+        "weeklyRules": {
+          "monday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "thursday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "friday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ]
+        }
+      },
+      {
+        "partyId": "bob",
+        "timeZone": "IST",
+        "weeklyRules": {
+          "monday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "thursday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "friday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ]
+        }
+      }
+    ],
+    "options": {
+      "now": "2025-01-03T12:00:00Z"
+    }
+  },
+  "expected": {
+    "ok": false,
+    "error": {
+      "code": "AMBIGUOUS_ZONE",
+      "message": "Time zone abbreviation \"IST\" is ambiguous; use an IANA zone.",
+      "details": {
+        "field": "participants[1].timeZone",
+        "value": "IST",
+        "options": [
+          "Asia/Kolkata",
+          "Europe/Dublin",
+          "Asia/Jerusalem"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "id": "EX-16",
+  "entry": "evaluate",
+  "input": {
+    "request": {
+      "date": "2025-10-05",
+      "start": "02:30",
+      "end": "03:30",
+      "timeZone": "Australia/Lord_Howe"
+    },
+    "participants": [
+      {
+        "partyId": "alice",
+        "timeZone": "UTC",
+        "weeklyRules": {
+          "saturday": [
+            {
+              "start": "00:00",
+              "end": "24:00"
+            }
+          ]
+        }
+      },
+      {
+        "partyId": "bob",
+        "timeZone": "Australia/Lord_Howe",
+        "weeklyRules": {
+          "sunday": [
+            {
+              "start": "00:00",
+              "end": "06:00"
+            }
+          ]
+        }
+      }
+    ],
+    "options": {
+      "now": "2025-10-01T00:00:00Z"
+    }
+  },
+  "expected": {
+    "ok": true,
+    "decision": "book",
+    "requested": {
+      "start": "2025-10-05T02:30:00+11:00",
+      "end": "2025-10-05T03:30:00+11:00",
+      "startUtc": "2025-10-04T15:30:00Z",
+      "endUtc": "2025-10-04T16:30:00Z"
+    },
+    "slots": [
+      {
+        "start": "2025-10-05T02:30:00+11:00",
+        "end": "2025-10-05T03:30:00+11:00",
+        "startUtc": "2025-10-04T15:30:00Z",
+        "endUtc": "2025-10-04T16:30:00Z"
+      }
+    ],
+    "reasons": []
+  }
+}

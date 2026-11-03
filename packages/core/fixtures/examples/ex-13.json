@@ -1,0 +1,63 @@
+{
+  "id": "EX-13",
+  "entry": "evaluate",
+  "input": {
+    "request": {
+      "date": "2025-11-02",
+      "start": "01:30",
+      "end": "02:30",
+      "timeZone": "America/New_York"
+    },
+    "participants": [
+      {
+        "partyId": "alice",
+        "timeZone": "America/New_York",
+        "weeklyRules": {
+          "sunday": [
+            {
+              "start": "00:00",
+              "end": "24:00"
+            }
+          ]
+        }
+      },
+      {
+        "partyId": "bob",
+        "timeZone": "UTC",
+        "weeklyRules": {
+          "sunday": [
+            {
+              "start": "00:00",
+              "end": "24:00"
+            }
+          ]
+        }
+      }
+    ],
+    "options": {
+      "now": "2025-10-25T00:00:00Z"
+    }
+  },
+  "expected": {
+    "ok": false,
+    "error": {
+      "code": "DST_AMBIGUOUS_LOCAL_TIME",
+      "message": "2025-11-02T01:30 occurs twice in America/New_York (clocks fall back).",
+      "details": {
+        "field": "request.start",
+        "localTime": "2025-11-02T01:30",
+        "timeZone": "America/New_York",
+        "candidates": [
+          {
+            "utc": "2025-11-02T05:30:00Z",
+            "offset": "-04:00"
+          },
+          {
+            "utc": "2025-11-02T06:30:00Z",
+            "offset": "-05:00"
+          }
+        ]
+      }
+    }
+  }
+}

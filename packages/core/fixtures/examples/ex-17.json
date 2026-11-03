@@ -1,0 +1,126 @@
+{
+  "id": "EX-17",
+  "entry": "evaluate",
+  "input": {
+    "request": {
+      "date": "2025-01-13",
+      "start": "09:00",
+      "end": "10:00",
+      "timeZone": "Asia/Kathmandu"
+    },
+    "participants": [
+      {
+        "partyId": "alice",
+        "timeZone": "Asia/Kolkata",
+        "weeklyRules": {
+          "monday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "thursday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "friday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ]
+        }
+      },
+      {
+        "partyId": "bob",
+        "timeZone": "Asia/Kathmandu",
+        "weeklyRules": {
+          "monday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "thursday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "friday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ]
+        }
+      }
+    ],
+    "options": {
+      "now": "2025-01-10T00:00:00Z"
+    }
+  },
+  "expected": {
+    "ok": true,
+    "decision": "counter_offer",
+    "requested": {
+      "start": "2025-01-13T09:00:00+05:45",
+      "end": "2025-01-13T10:00:00+05:45",
+      "startUtc": "2025-01-13T03:15:00Z",
+      "endUtc": "2025-01-13T04:15:00Z"
+    },
+    "slots": [
+      {
+        "start": "2025-01-13T09:15:00+05:45",
+        "end": "2025-01-13T10:15:00+05:45",
+        "startUtc": "2025-01-13T03:30:00Z",
+        "endUtc": "2025-01-13T04:30:00Z"
+      },
+      {
+        "start": "2025-01-13T10:15:00+05:45",
+        "end": "2025-01-13T11:15:00+05:45",
+        "startUtc": "2025-01-13T04:30:00Z",
+        "endUtc": "2025-01-13T05:30:00Z"
+      },
+      {
+        "start": "2025-01-13T11:15:00+05:45",
+        "end": "2025-01-13T12:15:00+05:45",
+        "startUtc": "2025-01-13T05:30:00Z",
+        "endUtc": "2025-01-13T06:30:00Z"
+      }
+    ],
+    "reasons": [
+      {
+        "code": "OUTSIDE_AVAILABILITY",
+        "participantId": "alice",
+        "message": "alice: requested interval is not inside any availability interval."
+      }
+    ]
+  }
+}
