@@ -1,0 +1,33 @@
+{
+  "name": "@marvinliem/tempo",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/exit-codes.d.ts",
+      "import": "./dist/exit-codes.js"
+    }
+  },
+  "files": ["dist"],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "rimraf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@marvinliem/tempo-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "rimraf": "^6.1.3",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.5"
+  }
+}
