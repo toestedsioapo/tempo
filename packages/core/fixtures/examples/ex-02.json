@@ -1,0 +1,111 @@
+{
+  "id": "EX-02",
+  "entry": "evaluate",
+  "input": {
+    "request": {
+      "date": "2025-01-06",
+      "start": "14:00",
+      "end": "19:00",
+      "timeZone": "UTC"
+    },
+    "participants": [
+      {
+        "partyId": "alice",
+        "timeZone": "America/New_York",
+        "weeklyRules": {
+          "monday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "thursday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "friday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ]
+        }
+      },
+      {
+        "partyId": "bob",
+        "timeZone": "Europe/London",
+        "weeklyRules": {
+          "monday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "thursday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "friday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ]
+        }
+      }
+    ],
+    "options": {
+      "now": "2025-01-03T12:00:00Z"
+    }
+  },
+  "expected": {
+    "ok": true,
+    "decision": "counter_offer",
+    "requested": {
+      "start": "2025-01-06T14:00:00Z",
+      "end": "2025-01-06T19:00:00Z",
+      "startUtc": "2025-01-06T14:00:00Z",
+      "endUtc": "2025-01-06T19:00:00Z"
+    },
+    "slots": [],
+    "reasons": [
+      {
+        "code": "OUTSIDE_AVAILABILITY",
+        "participantId": "bob",
+        "message": "bob: requested interval is not inside any availability interval."
+      },
+      {
+        "code": "NO_SLOTS_IN_HORIZON",
+        "message": "No slot found within 14 days of the requested start."
+      }
+    ]
+  }
+}

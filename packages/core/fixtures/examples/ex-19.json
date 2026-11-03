@@ -1,0 +1,125 @@
+{
+  "id": "EX-19",
+  "entry": "evaluate",
+  "input": {
+    "request": {
+      "date": "2025-01-06",
+      "start": "09:30",
+      "end": "10:30",
+      "timeZone": "America/New_York"
+    },
+    "participants": [
+      {
+        "partyId": "alice",
+        "timeZone": "America/New_York",
+        "weeklyRules": {
+          "monday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "thursday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "friday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ]
+        }
+      },
+      {
+        "partyId": "bob",
+        "timeZone": "Europe/London",
+        "weeklyRules": {
+          "monday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "thursday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "friday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ]
+        }
+      }
+    ],
+    "options": {
+      "now": "2025-01-06T15:00:00Z"
+    }
+  },
+  "expected": {
+    "ok": true,
+    "decision": "counter_offer",
+    "requested": {
+      "start": "2025-01-06T09:30:00-05:00",
+      "end": "2025-01-06T10:30:00-05:00",
+      "startUtc": "2025-01-06T14:30:00Z",
+      "endUtc": "2025-01-06T15:30:00Z"
+    },
+    "slots": [
+      {
+        "start": "2025-01-06T10:00:00-05:00",
+        "end": "2025-01-06T11:00:00-05:00",
+        "startUtc": "2025-01-06T15:00:00Z",
+        "endUtc": "2025-01-06T16:00:00Z"
+      },
+      {
+        "start": "2025-01-06T11:00:00-05:00",
+        "end": "2025-01-06T12:00:00-05:00",
+        "startUtc": "2025-01-06T16:00:00Z",
+        "endUtc": "2025-01-06T17:00:00Z"
+      },
+      {
+        "start": "2025-01-07T09:00:00-05:00",
+        "end": "2025-01-07T10:00:00-05:00",
+        "startUtc": "2025-01-07T14:00:00Z",
+        "endUtc": "2025-01-07T15:00:00Z"
+      }
+    ],
+    "reasons": [
+      {
+        "code": "IN_PAST",
+        "message": "Requested start 2025-01-06T14:30:00Z is before now 2025-01-06T15:00:00Z."
+      }
+    ]
+  }
+}

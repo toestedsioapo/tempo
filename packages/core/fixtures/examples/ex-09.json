@@ -1,0 +1,53 @@
+{
+  "id": "EX-09",
+  "entry": "evaluate",
+  "input": {
+    "request": {
+      "date": "2025-01-06",
+      "start": "09:00",
+      "end": "10:00",
+      "timeZone": "UTC"
+    },
+    "participants": [
+      {
+        "partyId": "alice",
+        "timeZone": "UTC",
+        "weeklyRules": {
+          "monday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ]
+        }
+      },
+      {
+        "partyId": "bob",
+        "timeZone": "UTC",
+        "weeklyRules": {
+          "monday": [
+            {
+              "start": "09:00",
+              "end": "09:00"
+            }
+          ]
+        }
+      }
+    ],
+    "options": {
+      "now": "2025-01-03T00:00:00Z"
+    }
+  },
+  "expected": {
+    "ok": false,
+    "error": {
+      "code": "INVALID_INTERVAL",
+      "message": "Availability interval start and end must differ.",
+      "details": {
+        "field": "participants[1].weeklyRules.monday[0]",
+        "start": "09:00",
+        "end": "09:00"
+      }
+    }
+  }
+}
