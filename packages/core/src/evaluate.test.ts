@@ -252,6 +252,56 @@ describe("CORE-19..21", () => {
     );
     expect(codes(r)).toEqual(["IN_BLACKOUT:alice", "OUTSIDE_AVAILABILITY:bob"]);
   });
+  it("CORE-21 a rule that is blacked out but does not cover the request stays OUTSIDE_AVAILABILITY", () => {
+    // 10:00-10:30 is blacked out on the day, but the request 10:00-11:00 was never inside any rule.
+    const r = run(
+      scenario({
+        start: "10:00",
+        end: "11:00",
+        parties: [utc("alice", { monday: [day("10:00", "10:30")] }, ["2025-01-06"]), utc("bob", always)],
+      }),
+    );
+    expect(codes(r)).toEqual(["OUTSIDE_AVAILABILITY:alice"]);
+  });
+});
+
+describe("IN_BLACKOUT names the earliest blocked instance", () => {
+  const msgFor = (blackouts: string[]) => {
+    const r = run(
+      scenario({
+        date: "2025-01-06",
+        start: "01:00",
+        end: "02:00",
+        parties: [
+          utc("alice", { sunday: [day("22:00", "06:00")], monday: [day("00:00", "24:00")] }, blackouts),
+          utc("bob", { monday: [day("00:00", "24:00")] }),
+        ],
+      }),
+    );
+    if (!r.ok) throw new Error(JSON.stringify(r.error));
+    return r.reasons.map((x) => x.message);
+  };
+  it("a Sunday overnight shift and a Monday shift both blocked: the earlier owner date wins", () => {
+    expect(msgFor(["2025-01-05", "2025-01-06"])).toEqual([
+      "alice: availability is blocked by blackout date 2025-01-05.",
+    ]);
+    expect(msgFor(["2025-01-06", "2025-01-05"])).toEqual([
+      "alice: availability is blocked by blackout date 2025-01-05.",
+    ]);
+  });
+  it("two blocked rules with the same start are ordered by end and still give one reason", () => {
+    const r = run(
+      scenario({
+        start: "10:00",
+        end: "11:00",
+        parties: [
+          utc("alice", { monday: [day("10:00", "12:00"), day("10:00", "11:00")] }, ["2025-01-06"]),
+          utc("bob", { monday: [day("00:00", "24:00")] }),
+        ],
+      }),
+    );
+    expect(codes(r)).toEqual(["IN_BLACKOUT:alice"]);
+  });
 });
 
 describe("gate reasons first (CORE-22/23)", () => {

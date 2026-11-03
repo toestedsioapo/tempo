@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
 import { applyBlackouts, contains, expandInstances, findInvalidInterval, mergeSpans } from "./intervals.js";
-import type { Span } from "./intervals.js";
+import type { Instance, Span } from "./intervals.js";
 import { parseNegotiationRequest } from "./parse.js";
 import { requestedSpan, timeGate } from "./gates.js";
 import { formatUtc, toIsoSlot } from "./render.js";
@@ -8,7 +8,8 @@ import { inBlackout, inPast, insufficientNotice, outsideAvailability } from "./r
 import type { NegotiationRequest, NegotiationResult, PartyRules, Reason, ResolvedNegotiationRequest } from "./types.js";
 import { validateZones } from "./zones.js";
 
-const byCodeUnit = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+// partyIds are unique (schema), so two distinct ids never compare equal.
+const byCodeUnit = (a: string, b: string): number => (a < b ? -1 : 1);
 
 function participantReason(party: PartyRules, span: Span): Reason | null {
   const all = expandInstances(party, span.startMs, span.endMs);
@@ -18,7 +19,9 @@ function participantReason(party: PartyRules, span: Span): Reason | null {
   const blocked = all
     .filter((i) => party.blackouts.includes(i.ownerDate) && i.startMs < span.endMs && i.endMs > span.startMs)
     .sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs)[0];
-  return blocked ? inBlackout(party.partyId, blocked.ownerDate) : outsideAvailability(party.partyId);
+  // Reaching here means the request is covered only with help from blacked-out instances, and a
+  // covering instance has positive overlap with the (positive-length) request, so one exists.
+  return inBlackout(party.partyId, (blocked as Instance).ownerDate);
 }
 
 function compute(request: ResolvedNegotiationRequest): NegotiationResult {
