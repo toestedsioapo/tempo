@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -61,4 +61,73 @@ describe("repo config", () => {
     }
     expect(entries).toEqual(["packages/*"]);
   });
+
+  it("CFG-07: core dependencies are exactly luxon and zod", () => {
+    const pkg = readJson("packages/core/package.json");
+    const deps = isRecord(pkg) ? pkg["dependencies"] : undefined;
+    expect(Object.keys(isRecord(deps) ? deps : {}).sort()).toEqual(["luxon", "zod"]);
+  });
+
+  it("CFG-07: core src never uses Temporal outside comments", () => {
+    const offenders: string[] = [];
+    for (const file of walk("packages/core/src")) {
+      if (!/\.(ts|js|mjs|cjs)$/.test(file)) continue;
+      const code = stripComments(readText(file));
+      if (/\bTemporal\b/.test(code)) offenders.push(file);
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("CFG-08: no dts.ts anywhere under packages/", () => {
+    const found = walk("packages").filter((f) => f.split("/").pop() === "dts.ts");
+    expect(found).toEqual([]);
+  });
+  it.todo("dst.ts exists in core (M2b)");
+  it.todo("SKILL.md exists at the repo root (M4)");
+
+  it("licence: LICENSE is MIT with Marvin Liemor as holder", () => {
+    const text = readText("LICENSE");
+    expect(text.startsWith("MIT License")).toBe(true);
+    expect(text).toMatch(/^Copyright \(c\) .*Marvin Liemor/m);
+  });
+
+  it("licence: both packages declare MIT and the author", () => {
+    for (const rel of ["packages/core/package.json", "packages/cli/package.json"]) {
+      const pkg = readJson(rel);
+      expect(isRecord(pkg) ? pkg["license"] : undefined).toBe("MIT");
+      expect(isRecord(pkg) ? pkg["author"] : undefined).toBe("Marvin Liemor");
+    }
+  });
+
+  it("CFG-11: changesets config is public", () => {
+    const cfg = readJson(".changeset/config.json");
+    expect(isRecord(cfg) ? cfg["access"] : undefined).toBe("public");
+  });
+
+  it("CFG-11: release workflow uses provenance and holds no token", () => {
+    const release = readText(".github/workflows/release.yml");
+    expect(release).toContain("id-token: write");
+    expect(release).toContain("provenance");
+    const tokenPattern = /NPM_TOKEN|NODE_AUTH_TOKEN|_authToken/;
+    expect(release).not.toMatch(tokenPattern);
+    // ci.yml is asserted to exist in Task 11; skipped here while absent.
+    if (existsSync(resolve(root, ".github/workflows/ci.yml"))) {
+      expect(readText(".github/workflows/ci.yml")).not.toMatch(tokenPattern);
+    }
+  });
 });
+
+function walk(rel: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(resolve(root, rel), { withFileTypes: true })) {
+    if (entry.name === "node_modules" || entry.name === "dist") continue;
+    const child = rel + "/" + entry.name;
+    if (entry.isDirectory()) out.push(...walk(child));
+    else out.push(child);
+  }
+  return out;
+}
+
+function stripComments(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+}

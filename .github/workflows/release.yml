@@ -1,0 +1,27 @@
+# Inert by design: manual dispatch only. Publishing uses npm trusted publishing
+# (OIDC) with provenance; no token variables live in this repo (A-38).
+name: release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+env:
+  NPM_CONFIG_PROVENANCE: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm changeset publish

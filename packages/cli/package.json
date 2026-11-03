@@ -2,6 +2,8 @@
   "name": "@marvinliem/tempo",
   "version": "0.1.0",
   "type": "module",
+  "license": "MIT",
+  "author": "Marvin Liemor",
   "exports": {
     ".": {
       "types": "./dist/exit-codes.d.ts",
