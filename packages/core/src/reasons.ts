@@ -1,4 +1,6 @@
-import type { LocalDate, Reason, UtcInstant } from "./types.js";
+import type { BoundaryAdjustment } from "./intervals.js";
+import { formatUtc } from "./render.js";
+import type { LocalDate, Reason, UtcInstant, ZoneId } from "./types.js";
 
 /** Exact SPEC §3.5 templates. */
 export const inPast = (startUtc: UtcInstant, now: UtcInstant): Reason => ({
@@ -21,4 +23,10 @@ export const inBlackout = (partyId: string, date: LocalDate): Reason => ({
   code: "IN_BLACKOUT",
   participantId: partyId,
   message: `${partyId}: availability is blocked by blackout date ${date}.`,
+});
+
+export const dstRuleAdjusted = (partyId: string, a: BoundaryAdjustment, zone: ZoneId): Reason => ({
+  code: "DST_RULE_ADJUSTED",
+  participantId: partyId,
+  message: `${partyId}: rule boundary ${a.localTime} in ${zone} is ${a.kind}; resolved to ${formatUtc(a.resolvedMs)}.`,
 });
