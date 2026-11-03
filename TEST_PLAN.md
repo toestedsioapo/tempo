@@ -49,7 +49,7 @@ Table-driven: one fixture per SPEC example (`fixtures/examples/ex-nn.json` holdi
 | EX-21 | Ranking and tie-break | `evaluate` | slots `[09:00, 11:00, 08:00]` (rank order, not chronological; 08:45, 11:15 … skipped as overlapping) |
 | EX-22 | Three participants + trace | `explain` | exact `ExplainResult` |
 | EX-23 | Ambiguous “IST” | `evaluate` | `AMBIGUOUS_ZONE`, exact `options` |
-| EX-24 | Rule boundary inside a gap | `evaluate` | `book` + `DST_RULE_ADJUSTED`, instance `[07:30Z, 14:00Z]` |
+| EX-24 | Rule boundary inside a gap | `evaluate` | `book` + `DST_RULE_ADJUSTED`, instance `[07:00Z, 14:00Z]` |
 
 Each example is also run through `suggest` and `explain` for structural consistency (`explain.decision` and `reasons` equal `evaluate`'s; `explain.candidates` equal `evaluate`'s `slots` on a counter_offer; `suggest.slots[0]` equals the requested slot on a `book`).
 
@@ -182,7 +182,7 @@ Run on Linux and Windows in CI. Snapshots live in `packages/cli/test/__snapshots
 | Missing or non-ISO `now` | `INVALID_INPUT` | — | CORE-04 |
 | Request before `now`; insufficient notice | `IN_PAST`; `INSUFFICIENT_NOTICE` | EX-19, EX-20 | CORE-22, CORE-23 |
 | +05:30 / +05:45 offsets; Lord_Howe 30-minute shift | exact minute arithmetic | EX-16, EX-17 | G-01, ORC-01 |
-| Rule boundary in a DST gap | forward + `DST_RULE_ADJUSTED` | EX-24 | CORE-38 |
+| Rule boundary in a DST gap | transition instant (G34) + `DST_RULE_ADJUSTED`; overlap = earlier occurrence | EX-24 | CORE-38 |
 | Participant order | irrelevant | EX-22 | INV-07 |
 
 ## 8. Quality gates

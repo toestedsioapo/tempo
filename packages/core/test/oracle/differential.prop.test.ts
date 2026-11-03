@@ -1,6 +1,6 @@
 // ORC-01 (decision only): the engine and the independent oracle agree on generated inputs.
 // Inputs stay more than one day away from every DST transition of every zone involved, because
-// the oracle does not model the A-07 rule-boundary policy (see oracle.ts header, A-55).
+// the oracle does not model the A-07 overlap policy (see oracle.ts header, A-55).
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { evaluate } from "../../src/index.js";
