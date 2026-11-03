@@ -1,7 +1,7 @@
 import { DateTime } from "luxon";
 import { wallTimeToMs } from "./intervals.js";
 import type { Span } from "./intervals.js";
-import type { ResolvedNegotiationRequest } from "./types.js";
+import type { LocalDate, ResolvedNegotiationRequest } from "./types.js";
 
 export type TimeGate = "OK" | "IN_PAST" | "INSUFFICIENT_NOTICE";
 
@@ -11,7 +11,7 @@ export function requestedSpan(request: ResolvedNegotiationRequest["request"]): S
   const endDate =
     request.end > request.start
       ? request.date
-      : (DateTime.fromISO(request.date, { zone: "utc" }).plus({ days: 1 }).toISODate() ?? request.date);
+      : (DateTime.fromISO(request.date, { zone: "utc" }).plus({ days: 1 }).toISODate() as LocalDate);
   return { startMs, endMs: wallTimeToMs(endDate, request.end, request.timeZone) };
 }
 

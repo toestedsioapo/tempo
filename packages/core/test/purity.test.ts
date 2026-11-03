@@ -1,3 +1,4 @@
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { ESLint } from "eslint";
 import { describe, expect, it } from "vitest";
@@ -59,5 +60,26 @@ describe("core purity lint rules", () => {
     expect(await ruleIds("const t = Date.now();", "packages/core/src/x.test.ts")).toContain(
       "no-restricted-syntax",
     );
+  });
+});
+
+// CORE-40: source scan. Comments are stripped with a regex, so a banned token inside a
+// string literal that contains "//" could be missed; the lint rules above are the primary guard.
+describe("core purity source scan (CORE-40)", () => {
+  const srcDir = resolve(repoRoot, "packages/core/src");
+  const banned = [/Date\.now/, /new Date/, /process\./, /node:fs/, /from "fs"/];
+
+  it("no non-test source line uses the clock, process or fs", () => {
+    const offenders: string[] = [];
+    for (const name of readdirSync(srcDir)) {
+      if (!name.endsWith(".ts") || name.endsWith(".test.ts")) continue;
+      const code = readFileSync(resolve(srcDir, name), "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/\/\/.*$/gm, "");
+      code.split(/\r?\n/).forEach((line, i) => {
+        if (banned.some((re) => re.test(line))) offenders.push(`${name}:${i + 1}: ${line.trim()}`);
+      });
+    }
+    expect(offenders).toEqual([]);
   });
 });

@@ -124,6 +124,13 @@ describe("repo config", () => {
     expect(lines).toContain("coverage/");
   });
 
+  it("coverage: core config gates lines and branches at 95 (A-58)", () => {
+    const cfg = readText("packages/core/vitest.config.ts");
+    expect(cfg).toContain("thresholds");
+    expect(cfg).toMatch(/lines:\s*95/);
+    expect(cfg).toMatch(/branches:\s*95/);
+  });
+
   describe("CI workflow", () => {
     const ci = (): string => readText(".github/workflows/ci.yml");
     const runLines = (): string[] =>

@@ -80,11 +80,26 @@ describe("expandInstances", () => {
   });
 });
 
+describe("expandInstances ordering", () => {
+  it("rules with equal starts come out ordered by end", () => {
+    const p = party("UTC", { monday: [{ start: "10:00", end: "12:00" }, { start: "10:00", end: "11:00" }] });
+    const out = expandInstances(p, ms("2025-01-06T00:00:00Z"), ms("2025-01-06T23:00:00Z"));
+    const mondays = out.filter((i) => i.ownerDate === "2025-01-06").map((i) => i.rule.end);
+    expect(mondays).toEqual(["11:00", "12:00"]);
+  });
+});
+
 describe("mergeSpans / contains (CORE-14, CORE-15)", () => {
   it("merges touching, keeps one-minute gap, handles unsorted and empty", () => {
     expect(mergeSpans([{ startMs: 60, endMs: 120 }, { startMs: 0, endMs: 60 }])).toEqual([{ startMs: 0, endMs: 120 }]);
     expect(mergeSpans([{ startMs: 0, endMs: 60_000 }, { startMs: 120_000, endMs: 180_000 }])).toHaveLength(2);
     expect(mergeSpans([])).toEqual([]);
+  });
+  it("equal starts are ordered by end (any input order, same result)", () => {
+    const a = { startMs: 0, endMs: 60 };
+    const b = { startMs: 0, endMs: 120 };
+    expect(mergeSpans([b, a])).toEqual([{ startMs: 0, endMs: 120 }]);
+    expect(mergeSpans([a, b])).toEqual([{ startMs: 0, endMs: 120 }]);
   });
   it("contains", () => {
     const m = [{ startMs: ms("2025-01-06T09:00:00Z"), endMs: ms("2025-01-06T17:00:00Z") }];
