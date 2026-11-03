@@ -15,6 +15,12 @@
 //  * a "24:00" end covers every minute up to the next midnight and owns nothing after it.
 // Overnight rules (end < start) are owned by the day they start: they cover t >= start on the
 // owner date and t < end on the following date.
+//
+// DST limitation (A-07, A-55): the oracle reads each minute's wall time and so does NOT model the
+// A-07 rule-boundary policy (gap boundary -> forward, overlap boundary -> earlier occurrence). It
+// diverges from the engine at DST gaps AND at fall-back overlaps, so it must only be used on inputs
+// away from transitions. ORC-02 excludes EX-24 for this reason (A-55), and the ORC-01 generators
+// keep every request more than one day from any transition of every zone involved.
 import { DateTime } from "luxon";
 
 export interface OracleInput {
@@ -25,7 +31,9 @@ export interface OracleInput {
     weeklyRules: Record<string, { start: string; end: string }[] | undefined>;
     blackouts?: string[];
   }[];
-  options?: { now: string; minNoticeMinutes?: number };
+  // `now` is required: without it the time gate cannot be evaluated, and a missing value must not
+  // silently pass the gate.
+  options: { now: string; minNoticeMinutes?: number };
 }
 
 export interface OracleResult {
@@ -94,8 +102,11 @@ export function oracleDecision(input: OracleInput): OracleResult {
   }
   failing.sort();
 
-  const nowMs = DateTime.fromISO(input.options?.now ?? "", { zone: "utc" }).toMillis();
-  const boundMs = nowMs + (input.options?.minNoticeMinutes ?? 0) * 60_000;
+  const nowMs = DateTime.fromISO(input.options.now, { zone: "utc" }).toMillis();
+  // Untyped callers (JSON fixtures) bypass the type; an unreadable `now` would make every
+  // comparison false and silently pass the gate, so fail loudly instead.
+  if (!Number.isFinite(nowMs)) throw new Error(`oracle: options.now is missing or invalid`);
+  const boundMs = nowMs + (input.options.minNoticeMinutes ?? 0) * 60_000;
   const gate = startMs < nowMs ? "IN_PAST" : startMs < boundMs ? "INSUFFICIENT_NOTICE" : "OK";
 
   return {
