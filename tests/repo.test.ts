@@ -115,6 +115,46 @@ describe("repo config", () => {
       expect(readText(".github/workflows/ci.yml")).not.toMatch(tokenPattern);
     }
   });
+
+  describe("CI workflow", () => {
+    const ci = (): string => readText(".github/workflows/ci.yml");
+    const runLines = (): string[] =>
+      ci()
+        .split(/\r?\n/)
+        .map((l) => l.trim().replace(/^- /, ""))
+        .filter((l) => l.startsWith("run:"));
+
+    it("CI: ci.yml exists and covers the OS and Node matrix", () => {
+      const text = ci();
+      expect(text).toContain("ubuntu-latest");
+      expect(text).toContain("windows-latest");
+      expect(text).toMatch(/node:\s*\[\s*24\s*,\s*26\s*\]/);
+      expect(text).toContain("--frozen-lockfile");
+    });
+
+    it("CI: runs install, typecheck, lint, test, build in order (whole run lines)", () => {
+      const runs = runLines();
+      const order = [
+        "run: pnpm install --frozen-lockfile",
+        "run: pnpm typecheck",
+        "run: pnpm lint",
+        "run: pnpm test",
+        "run: pnpm build",
+      ].map((cmd) => runs.indexOf(cmd));
+      expect(order.every((i) => i >= 0)).toBe(true);
+      expect(order).toEqual([...order].sort((a, b) => a - b));
+    });
+
+    it("CI: fail-fast is off and permissions are read-only", () => {
+      const text = ci();
+      expect(text).toContain("fail-fast: false");
+      expect(text).toContain("contents: read");
+    });
+
+    it("CI: holds no token pattern", () => {
+      expect(ci()).not.toMatch(/NPM_TOKEN|NODE_AUTH_TOKEN|_authToken|secrets\./);
+    });
+  });
 });
 
 function walk(rel: string): string[] {
