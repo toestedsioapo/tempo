@@ -1,0 +1,313 @@
+{
+  "id": "EX-22",
+  "entry": "explain",
+  "input": {
+    "request": {
+      "date": "2025-01-06",
+      "start": "09:00",
+      "end": "10:00",
+      "timeZone": "America/New_York"
+    },
+    "participants": [
+      {
+        "partyId": "alice",
+        "timeZone": "America/New_York",
+        "weeklyRules": {
+          "monday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "thursday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "friday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ]
+        }
+      },
+      {
+        "partyId": "bob",
+        "timeZone": "Europe/London",
+        "weeklyRules": {
+          "monday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "thursday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ],
+          "friday": [
+            {
+              "start": "09:00",
+              "end": "17:00"
+            }
+          ]
+        }
+      },
+      {
+        "partyId": "carol",
+        "timeZone": "America/Chicago",
+        "weeklyRules": {
+          "monday": [
+            {
+              "start": "10:00",
+              "end": "18:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "start": "10:00",
+              "end": "18:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "start": "10:00",
+              "end": "18:00"
+            }
+          ],
+          "thursday": [
+            {
+              "start": "10:00",
+              "end": "18:00"
+            }
+          ],
+          "friday": [
+            {
+              "start": "10:00",
+              "end": "18:00"
+            }
+          ]
+        }
+      }
+    ],
+    "options": {
+      "now": "2025-01-03T12:00:00Z"
+    }
+  },
+  "expected": {
+    "ok": true,
+    "decision": "counter_offer",
+    "reasons": [
+      {
+        "code": "OUTSIDE_AVAILABILITY",
+        "participantId": "carol",
+        "message": "carol: requested interval is not inside any availability interval."
+      }
+    ],
+    "requested": {
+      "slot": {
+        "start": "2025-01-06T09:00:00-05:00",
+        "end": "2025-01-06T10:00:00-05:00",
+        "startUtc": "2025-01-06T14:00:00Z",
+        "endUtc": "2025-01-06T15:00:00Z"
+      },
+      "pass": false,
+      "timeGate": "OK",
+      "checks": [
+        {
+          "participant": "alice",
+          "ruleMatched": {
+            "weekday": "monday",
+            "start": "09:00",
+            "end": "17:00",
+            "ownerDate": "2025-01-06"
+          },
+          "pass": true,
+          "reasonCode": "OK"
+        },
+        {
+          "participant": "bob",
+          "ruleMatched": {
+            "weekday": "monday",
+            "start": "09:00",
+            "end": "17:00",
+            "ownerDate": "2025-01-06"
+          },
+          "pass": true,
+          "reasonCode": "OK"
+        },
+        {
+          "participant": "carol",
+          "ruleMatched": null,
+          "pass": false,
+          "reasonCode": "OUTSIDE_AVAILABILITY"
+        }
+      ]
+    },
+    "candidates": [
+      {
+        "slot": {
+          "start": "2025-01-06T11:00:00-05:00",
+          "end": "2025-01-06T12:00:00-05:00",
+          "startUtc": "2025-01-06T16:00:00Z",
+          "endUtc": "2025-01-06T17:00:00Z"
+        },
+        "pass": true,
+        "timeGate": "OK",
+        "checks": [
+          {
+            "participant": "alice",
+            "ruleMatched": {
+              "weekday": "monday",
+              "start": "09:00",
+              "end": "17:00",
+              "ownerDate": "2025-01-06"
+            },
+            "pass": true,
+            "reasonCode": "OK"
+          },
+          {
+            "participant": "bob",
+            "ruleMatched": {
+              "weekday": "monday",
+              "start": "09:00",
+              "end": "17:00",
+              "ownerDate": "2025-01-06"
+            },
+            "pass": true,
+            "reasonCode": "OK"
+          },
+          {
+            "participant": "carol",
+            "ruleMatched": {
+              "weekday": "monday",
+              "start": "10:00",
+              "end": "18:00",
+              "ownerDate": "2025-01-06"
+            },
+            "pass": true,
+            "reasonCode": "OK"
+          }
+        ]
+      },
+      {
+        "slot": {
+          "start": "2025-01-07T11:00:00-05:00",
+          "end": "2025-01-07T12:00:00-05:00",
+          "startUtc": "2025-01-07T16:00:00Z",
+          "endUtc": "2025-01-07T17:00:00Z"
+        },
+        "pass": true,
+        "timeGate": "OK",
+        "checks": [
+          {
+            "participant": "alice",
+            "ruleMatched": {
+              "weekday": "tuesday",
+              "start": "09:00",
+              "end": "17:00",
+              "ownerDate": "2025-01-07"
+            },
+            "pass": true,
+            "reasonCode": "OK"
+          },
+          {
+            "participant": "bob",
+            "ruleMatched": {
+              "weekday": "tuesday",
+              "start": "09:00",
+              "end": "17:00",
+              "ownerDate": "2025-01-07"
+            },
+            "pass": true,
+            "reasonCode": "OK"
+          },
+          {
+            "participant": "carol",
+            "ruleMatched": {
+              "weekday": "tuesday",
+              "start": "10:00",
+              "end": "18:00",
+              "ownerDate": "2025-01-07"
+            },
+            "pass": true,
+            "reasonCode": "OK"
+          }
+        ]
+      },
+      {
+        "slot": {
+          "start": "2025-01-08T11:00:00-05:00",
+          "end": "2025-01-08T12:00:00-05:00",
+          "startUtc": "2025-01-08T16:00:00Z",
+          "endUtc": "2025-01-08T17:00:00Z"
+        },
+        "pass": true,
+        "timeGate": "OK",
+        "checks": [
+          {
+            "participant": "alice",
+            "ruleMatched": {
+              "weekday": "wednesday",
+              "start": "09:00",
+              "end": "17:00",
+              "ownerDate": "2025-01-08"
+            },
+            "pass": true,
+            "reasonCode": "OK"
+          },
+          {
+            "participant": "bob",
+            "ruleMatched": {
+              "weekday": "wednesday",
+              "start": "09:00",
+              "end": "17:00",
+              "ownerDate": "2025-01-08"
+            },
+            "pass": true,
+            "reasonCode": "OK"
+          },
+          {
+            "participant": "carol",
+            "ruleMatched": {
+              "weekday": "wednesday",
+              "start": "10:00",
+              "end": "18:00",
+              "ownerDate": "2025-01-08"
+            },
+            "pass": true,
+            "reasonCode": "OK"
+          }
+        ]
+      }
+    ]
+  }
+}
