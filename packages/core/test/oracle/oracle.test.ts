@@ -28,10 +28,10 @@ describe("ORC-02: oracle agrees with the SPEC examples", () => {
     }
   });
 
-  it.each(Array.from({ length: 24 }, (_, i) => i + 1).filter((n) => !EXCLUDED_IDS.includes(`EX-${String(n).padStart(2, "0")}` as never)).map((n) => [`EX-${String(n).padStart(2, "0")}`, n] as const))(
+  // Same `checked` array as the count assertion above, so the two cannot diverge.
+  it.each(checked.map((f) => [f.id, f] as const))(
     "%s",
-    (_id, n) => {
-      const f = load(n);
+    (_id, f) => {
       const reasons = f.expected.reasons ?? [];
       const failing = reasons
         .filter((r) => r.code === "OUTSIDE_AVAILABILITY" || r.code === "IN_BLACKOUT")
