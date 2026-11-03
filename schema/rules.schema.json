@@ -18,8 +18,7 @@
           "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
         },
         "timeZone": {
-          "type": "string",
-          "minLength": 1
+          "type": "string"
         }
       },
       "required": [
@@ -43,8 +42,7 @@
             "maxLength": 64
           },
           "timeZone": {
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "weeklyRules": {
             "type": "object",
