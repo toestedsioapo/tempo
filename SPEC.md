@@ -78,6 +78,8 @@ type Options = {
 }
 ```
 
+`NegotiationRequest` is what callers send: the optional fields above may be omitted. Parsing fills every default and yields `ResolvedNegotiationRequest`, the same shape with `blackouts` and all `options` required (G30). The engine works on the resolved form.
+
 ### 3.3 `NegotiationResult`
 
 ```ts

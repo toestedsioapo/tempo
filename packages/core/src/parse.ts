@@ -1,11 +1,11 @@
 import { formatIssuePath } from "./issues.js";
 import { NegotiationRequestSchema } from "./schema.js";
-import type { ErrorResult, NegotiationRequest } from "./types.js";
+import type { ErrorResult, ResolvedNegotiationRequest } from "./types.js";
 
 /** Validate untyped input. Errors are values (D13): never throws. */
 export function parseNegotiationRequest(
   input: unknown,
-): { ok: true; value: NegotiationRequest } | ErrorResult {
+): { ok: true; value: ResolvedNegotiationRequest } | ErrorResult {
   let parsed: ReturnType<typeof NegotiationRequestSchema.safeParse>;
   try {
     parsed = NegotiationRequestSchema.safeParse(input);
