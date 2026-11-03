@@ -1,7 +1,9 @@
 // Public API of @marvinliem/tempo-core. Named exports only: every name here is a downstream
 // contract. The list is pinned by src/public-api.test.ts; change both together and record why
 // in DECISIONS.md. `formatIssuePath`, `IsoOffsetSchema` and `parseNegotiationRequest` stay
-// internal until the engine entry points (evaluate / suggest / explain) exist.
+// internal.
+export { evaluate } from "./evaluate.js";
+
 export {
   DAY_NAMES,
   ExplainResultSchema,
