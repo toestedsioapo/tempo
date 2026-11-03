@@ -124,7 +124,7 @@ For **availability-rule boundaries** (A-07, approved as G28): gap → the transi
 
 ### ADR 6 — Errors are values (D13)
 
-**Decision:** Core never throws for expected failures. It returns `{ ok: false, error: { code, message, details? } }`. The CLI maps `code` to an exit code.
+**Decision:** Core never throws for expected failures. It returns `{ ok: false, error: { code, message, details? } }`. The CLI maps `code` to an exit code. A last-resort guard (`guard.ts`) turns an unexpected exception into `INVALID_INPUT` while reading input and `INTERNAL_ERROR` after the input was accepted (G33).
 **Why:** Keeps core pure and total; downstream (Deskhand MCP) can branch on `code` without try/catch. Property test INV-10 fuzzes arbitrary input for “never throws”.
 
 ### ADR 7 — CLI exit codes (D14)
