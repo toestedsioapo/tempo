@@ -5,13 +5,15 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { evaluate } from "../../src/index.js";
 import type { NegotiationRequest } from "../../src/index.js";
-import { differentialInputArb, farFromTransitions } from "../helpers.js";
+import { differentialInputArb, farFromTransitions, hasMidnightTouchingChain } from "../helpers.js";
 import type { DifferentialInput } from "../helpers.js";
 import { oracleDecision } from "./oracle.js";
 
 const NUM_RUNS = 200;
 // The oracle scans every minute, so runs are slow (~25 ms each); allow generous headroom on CI.
-const TIMEOUT_MS = 120_000;
+const TIMEOUT_MS = 30_000;
+// Conservative floor for the midnight-touching chain share (measured share is far higher).
+const MIDNIGHT_CHAIN_MIN = 20;
 
 /** Engine view reduced to what the oracle reports: decision, failing parties, time gate. */
 function engineView(input: DifferentialInput) {
@@ -41,9 +43,20 @@ describe("ORC-01: evaluate agrees with the oracle (decision, failing parties, ga
 
   it("generator sanity: at least 25% book and 25% counter_offer over 200 samples", () => {
     const samples = fc.sample(differentialInputArb(), { numRuns: 200, seed: 7 });
-    const book = samples.filter((s) => oracleDecision(s).decision === "book").length;
+    const results = samples.map((s) => oracleDecision(s));
+    const book = results.filter((r) => r.decision === "book").length;
     expect(book).toBeGreaterThanOrEqual(50);
     expect(samples.length - book).toBeGreaterThanOrEqual(50);
+    // Every branch stays populated, so a later generator edit cannot silently empty one.
+    expect(results.some((r) => r.gate === "IN_PAST")).toBe(true);
+    expect(results.some((r) => r.gate === "INSUFFICIENT_NOTICE")).toBe(true);
+    const blackoutDecides = samples.some((s, i) => {
+      const unblocked = { ...s, participants: s.participants.map((p) => ({ ...p, blackouts: [] })) };
+      return oracleDecision(unblocked).failing.join() !== results[i]?.failing.join();
+    });
+    expect(blackoutDecides).toBe(true);
+    // G-03: a "...-24:00"/"...-00:00" rule touching a next-day "00:00-..." rule.
+    expect(samples.filter(hasMidnightTouchingChain).length).toBeGreaterThanOrEqual(MIDNIGHT_CHAIN_MIN);
   }, TIMEOUT_MS);
 });
 

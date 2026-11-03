@@ -121,7 +121,10 @@ const randomWeeklyArb: fc.Arbitrary<Weekly> = fc
  * A chain of rules covering [from, to] in the party's local wall time, cut into pieces of less
  * than 24 h. Pieces touch (G-03 touching / split shifts), may overlap the next piece, become
  * overnight rules when they cross midnight, and end at "24:00" or "00:00" when they end at
- * midnight. Each piece is owned by the local date it starts on (SPEC §4.3).
+ * midnight. With `cutAtMidnight` every local midnight inside the span is also a cut, so the chain
+ * splits there into a "...-24:00" (or "...-00:00") rule touching a next-day "00:00-..." rule; random
+ * cuts alone land on midnight about once in 1,800. Each piece is owned by the local date it
+ * starts on (SPEC §4.3).
  */
 function coverWeekly(
   from: DateTime,
@@ -129,9 +132,17 @@ function coverWeekly(
   cuts: readonly number[],
   overlaps: readonly number[],
   use2400: boolean,
+  cutAtMidnight: boolean,
 ): Weekly {
   const total = Math.round((to.toMillis() - from.toMillis()) / MIN_MS);
-  const points = [...new Set([0, ...cuts.filter((c) => c > 0 && c < total), total])].sort((a, b) => a - b);
+  const midnights: number[] = [];
+  if (cutAtMidnight) {
+    for (let m = from.startOf("day").plus({ days: 1 }); m.toMillis() < to.toMillis(); m = m.plus({ days: 1 })) {
+      midnights.push(Math.round((m.toMillis() - from.toMillis()) / MIN_MS));
+    }
+  }
+  const inner = [...cuts, ...midnights].filter((c) => c > 0 && c < total);
+  const points = [...new Set([0, ...inner, total])].sort((a, b) => a - b);
   // Keep every piece shorter than 24 h (split long pieces in half until they fit).
   for (let i = 0; i + 1 < points.length; ) {
     const a = points[i] as number;
@@ -151,6 +162,21 @@ function coverWeekly(
     out[day] = [...(out[day] ?? []), { start: hhmm(wallMinutes(s)), end: endText }];
   }
   return out;
+}
+
+/**
+ * True iff some participant has a rule ending at midnight ("24:00", or "00:00" overnight) on
+ * weekday W touching a rule that starts at "00:00" on weekday W+1 (G-03: touching + 24:00 +
+ * start-day ownership, SPEC §4.3).
+ */
+export function hasMidnightTouchingChain(input: DifferentialInput): boolean {
+  return input.participants.some((p) =>
+    DAYS.some((day, i) => {
+      const next = DAYS[(i + 1) % 7] as (typeof DAYS)[number];
+      const endsAtMidnight = (p.weeklyRules[day] ?? []).some((r) => r.end === "24:00" || r.end === "00:00");
+      return endsAtMidnight && (p.weeklyRules[next] ?? []).some((r) => r.start === "00:00");
+    }),
+  );
 }
 
 function mergeWeekly(a: Weekly, b: Weekly): Weekly {
@@ -212,9 +238,10 @@ function participantArb(
       cuts: fc.array(fc.integer({ min: 1, max: 1800 }), { maxLength: 3 }),
       overlaps: fc.array(fc.oneof(fc.constant(0), fc.integer({ min: 1, max: 60 })), { maxLength: 4 }),
       use2400: fc.boolean(),
+      cutAtMidnight: fc.boolean(),
     })
-    .map(({ before, after, cuts, overlaps, use2400 }) =>
-      coverWeekly(ls.minus({ minutes: before }), le.plus({ minutes: after }), cuts, overlaps, use2400),
+    .map(({ before, after, cuts, overlaps, use2400, cutAtMidnight }) =>
+      coverWeekly(ls.minus({ minutes: before }), le.plus({ minutes: after }), cuts, overlaps, use2400, cutAtMidnight),
     );
   // G-04: owner dates, the day after, and dates that differ between UTC and the party's zone.
   const candidates = [
