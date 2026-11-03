@@ -14,6 +14,7 @@ const PUBLIC_VALUES = [
   "ExplainResultSchema",
   "NegotiationRequestSchema",
   "NegotiationResultSchema",
+  "suggest",
 ];
 
 const PUBLIC_TYPES = [

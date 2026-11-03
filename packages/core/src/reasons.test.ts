@@ -1,8 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { DateTime } from "luxon";
-import { dstRuleAdjusted, inBlackout, inPast, insufficientNotice, outsideAvailability } from "./reasons.js";
+import {
+  dstRuleAdjusted,
+  inBlackout,
+  inPast,
+  insufficientNotice,
+  noSlotsInHorizon,
+  outsideAvailability,
+} from "./reasons.js";
 
 describe("reason templates (SPEC 3.5)", () => {
+  it("NO_SLOTS_IN_HORIZON", () => {
+    expect(noSlotsInHorizon(14)).toEqual({
+      code: "NO_SLOTS_IN_HORIZON",
+      message: "No slot found within 14 days of the requested start.",
+    });
+    expect(noSlotsInHorizon(1).message).toBe("No slot found within 1 days of the requested start.");
+  });
   it("IN_PAST", () =>
     expect(inPast("2025-01-06T14:30:00Z", "2025-01-06T14:30:01Z")).toEqual({
       code: "IN_PAST",
