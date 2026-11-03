@@ -17,9 +17,9 @@ const load = (n: number): Fixture =>
 const run = (f: Fixture) => evaluate(f.input as NegotiationRequest);
 
 // Tier 1: exact. 02:30 on 2025-10-05 exists in Lord_Howe (gap is 02:00-02:30), so EX-16 is a clean book.
-const EXACT = [1, 3, 5, 7, 8, 9, 10, 12, 13, 14, 15, 16, 23];
+const EXACT = [1, 3, 5, 7, 8, 9, 10, 12, 13, 14, 15, 16, 23, 24];
 // Tier 2: decision only. NO_SLOTS_IN_HORIZON and DST_RULE_ADJUSTED are M2b (A-52/A-53).
-const DECISION = [2, 4, 6, 11, 17, 18, 19, 20, 21, 24];
+const DECISION = [2, 4, 6, 11, 17, 18, 19, 20, 21];
 const M2B = new Set(["NO_SLOTS_IN_HORIZON", "DST_RULE_ADJUSTED"]);
 
 interface Loose {
@@ -54,5 +54,4 @@ describe("SPEC worked examples: decision and reasons (M2b codes removed)", () =>
 
 describe("SPEC worked examples: deferred to M2b", () => {
   it.todo("EX-22 explain trace (M2b)");
-  it.todo("EX-24 DST_RULE_ADJUSTED exact output (M2b, A-07/A-53)");
 });

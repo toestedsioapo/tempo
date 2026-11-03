@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { inBlackout, inPast, insufficientNotice, outsideAvailability } from "./reasons.js";
+import { DateTime } from "luxon";
+import { dstRuleAdjusted, inBlackout, inPast, insufficientNotice, outsideAvailability } from "./reasons.js";
 
 describe("reason templates (SPEC 3.5)", () => {
   it("IN_PAST", () =>
@@ -24,5 +25,17 @@ describe("reason templates (SPEC 3.5)", () => {
       code: "IN_BLACKOUT",
       participantId: "bob",
       message: "bob: availability is blocked by blackout date 2025-01-06.",
+    }));
+  it("DST_RULE_ADJUSTED", () =>
+    expect(
+      dstRuleAdjusted(
+        "bob",
+        { boundary: "start", localTime: "2025-03-09T02:30", kind: "nonexistent", resolvedMs: DateTime.fromISO("2025-03-09T07:00:00Z").toMillis() },
+        "America/New_York",
+      ),
+    ).toEqual({
+      code: "DST_RULE_ADJUSTED",
+      participantId: "bob",
+      message: "bob: rule boundary 2025-03-09T02:30 in America/New_York is nonexistent; resolved to 2025-03-09T07:00:00Z.",
     }));
 });

@@ -415,3 +415,36 @@ describe("DST request times (C10, SPEC 4.1)", () => {
     expect(dst(r)).toMatchObject({ code: "AMBIGUOUS_ZONE" });
   });
 });
+
+describe("DST_RULE_ADJUSTED notes (A-61, G34)", () => {
+  const bob = { id: "bob", zone: "America/New_York", rules: { sunday: [day("02:30", "10:00")] } };
+  const alice = utc("alice", { sunday: [day("00:00", "24:00")] });
+  const req = (date: string, start: string, end: string, parties: Parameters<typeof scenario>[0]["parties"] = [alice, bob]) =>
+    run(scenario({ date, start, end, zone: "America/New_York", now: "2025-03-01T00:00:00Z", parties }));
+  it("any strict overlap with an adjusted instance emits the note on book", () => {
+    const r = req("2025-03-09", "04:00", "05:00");
+    expect(r.ok && r.decision).toBe("book");
+    expect(codes(r)).toEqual(["DST_RULE_ADJUSTED:bob"]);
+  });
+  it("no note on another day", () => {
+    expect(codes(req("2025-03-10", "04:00", "05:00", [utc("alice", { monday: [day("00:00", "24:00")] }), bob]))).toEqual([
+      "OUTSIDE_AVAILABILITY:bob",
+    ]);
+  });
+  it("no note when the request ends exactly at the instance start", () => {
+    // Instance is 07:00Z-08:00Z (03:00-04:00 EDT); the request starts exactly at 08:00Z.
+    const short = { ...bob, rules: { sunday: [day("02:30", "03:30")] } };
+    expect(codes(req("2025-03-09", "04:00", "05:00", [alice, short]))).toEqual(["OUTSIDE_AVAILABILITY:bob"]);
+  });
+  it("no note for a blacked-out adjusted instance", () => {
+    expect(codes(req("2025-03-09", "04:00", "05:00", [alice, { ...bob, blackouts: ["2025-03-09"] }]))).toEqual([
+      "IN_BLACKOUT:bob",
+    ]);
+  });
+  it("counter_offer keeps the note after the failure reason; participants sorted by id", () => {
+    const zed = { id: "zed", zone: "America/New_York", rules: { sunday: [day("02:30", "10:00")] } };
+    const bob2 = { ...bob, rules: { sunday: [day("02:30", "06:00")] } };
+    const r = req("2025-03-09", "04:00", "08:00", [zed, bob2, alice]);
+    expect(codes(r)).toEqual(["OUTSIDE_AVAILABILITY:bob", "DST_RULE_ADJUSTED:bob", "DST_RULE_ADJUSTED:zed"]);
+  });
+});

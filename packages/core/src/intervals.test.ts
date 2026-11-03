@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import { DateTime } from "luxon";
 import { validRequest } from "../test/helpers.js";
 import {
+  adjustmentNotes,
   applyBlackouts,
   contains,
   expandInstances,
   findInvalidInterval,
   mergeSpans,
+  resolveInstanceBoundaries,
 } from "./intervals.js";
 import type { PartyRules, ResolvedNegotiationRequest } from "./types.js";
 
@@ -28,6 +30,7 @@ describe("expandInstances", () => {
       ownerDate: "2025-01-06",
       weekday: "monday",
       rule: { start: "09:00", end: "17:00" },
+      adjustments: [],
     });
   });
   it("overnight is owned by its start date", () => {
@@ -135,5 +138,102 @@ describe("findInvalidInterval (EX-09)", () => {
     expect(findInvalidInterval(r)).toMatchObject({
       error: { details: { field: "participants[1].weeklyRules.monday[1]", start: "11:00", end: "11:00" } },
     });
+  });
+});
+
+describe("resolveInstanceBoundaries (CORE-38, G34)", () => {
+  const NY = "America/New_York";
+  const adj = (boundary: "start" | "end", localTime: string, kind: "nonexistent" | "ambiguous", z: string) => ({
+    boundary,
+    localTime,
+    kind,
+    resolvedMs: ms(z),
+  });
+  it("gap start resolves to the transition; end untouched", () => {
+    expect(resolveInstanceBoundaries("2025-03-09", { start: "02:30", end: "10:00" }, NY)).toEqual({
+      startMs: ms("2025-03-09T07:00:00Z"),
+      endMs: ms("2025-03-09T14:00:00Z"),
+      adjustments: [adj("start", "2025-03-09T02:30", "nonexistent", "2025-03-09T07:00:00Z")],
+    });
+  });
+  it("a rule partly inside the gap is kept", () => {
+    expect(resolveInstanceBoundaries("2025-03-09", { start: "02:30", end: "03:15" }, NY)).toEqual({
+      startMs: ms("2025-03-09T07:00:00Z"),
+      endMs: ms("2025-03-09T07:15:00Z"),
+      adjustments: [adj("start", "2025-03-09T02:30", "nonexistent", "2025-03-09T07:00:00Z")],
+    });
+  });
+  it("overnight end inside the gap reports an end adjustment", () => {
+    expect(resolveInstanceBoundaries("2025-03-08", { start: "22:00", end: "02:30" }, NY)).toEqual({
+      startMs: ms("2025-03-09T03:00:00Z"),
+      endMs: ms("2025-03-09T07:00:00Z"),
+      adjustments: [adj("end", "2025-03-09T02:30", "nonexistent", "2025-03-09T07:00:00Z")],
+    });
+  });
+  it("rules wholly inside the gap are dropped", () => {
+    expect(resolveInstanceBoundaries("2025-03-09", { start: "02:30", end: "03:00" }, NY)).toBeNull();
+    expect(resolveInstanceBoundaries("2025-03-09", { start: "02:00", end: "03:00" }, NY)).toBeNull();
+    expect(resolveInstanceBoundaries("2025-10-05", { start: "02:00", end: "02:30" }, "Australia/Lord_Howe")).toBeNull();
+  });
+  it("ambiguous start resolves to the earlier occurrence", () => {
+    expect(resolveInstanceBoundaries("2025-11-02", { start: "01:30", end: "05:00" }, NY)).toEqual({
+      startMs: ms("2025-11-02T05:30:00Z"),
+      endMs: ms("2025-11-02T10:00:00Z"),
+      adjustments: [adj("start", "2025-11-02T01:30", "ambiguous", "2025-11-02T05:30:00Z")],
+    });
+  });
+  it("24:00 end is the next date 00:00 and not an adjustment", () => {
+    expect(resolveInstanceBoundaries("2025-01-06", { start: "18:00", end: "24:00" }, NY)?.adjustments).toEqual([]);
+  });
+  it("Manila never adjusts", () => {
+    expect(resolveInstanceBoundaries("2025-03-09", { start: "02:30", end: "10:00" }, "Asia/Manila")?.adjustments).toEqual([]);
+  });
+  it("expandInstances omits dropped instances", () => {
+    const p = party(NY, { sunday: [{ start: "02:00", end: "03:00" }] });
+    const out = expandInstances(p, ms("2025-03-09T00:00:00Z"), ms("2025-03-10T00:00:00Z"));
+    expect(out.some((i) => i.ownerDate === "2025-03-09")).toBe(false);
+  });
+});
+
+describe("applyBlackouts with a UTC-date-crossing owner date (M2a note)", () => {
+  it("removes exactly the instance of that owner date for Manila 07:00-09:00", () => {
+    const p = party("Asia/Manila", {
+      sunday: [{ start: "07:00", end: "09:00" }],
+      monday: [{ start: "07:00", end: "09:00" }],
+    });
+    const all = expandInstances(p, ms("2025-03-08T00:00:00Z"), ms("2025-03-10T00:00:00Z"));
+    expect(all.find((i) => i.ownerDate === "2025-03-09")?.startMs).toBe(ms("2025-03-08T23:00:00Z"));
+    const kept = applyBlackouts(all, ["2025-03-09"]);
+    expect(kept.some((i) => i.ownerDate === "2025-03-09")).toBe(false);
+    expect(kept).toHaveLength(all.length - 1);
+  });
+});
+
+describe("adjustmentNotes (A-61)", () => {
+  const bob = { ...party("America/New_York", { sunday: [{ start: "02:30", end: "10:00" }] }), partyId: "bob" };
+  const span = (a: string, b: string) => ({ startMs: ms(a), endMs: ms(b) });
+  const open = (p: PartyRules) =>
+    applyBlackouts(expandInstances(p, ms("2025-03-08T00:00:00Z"), ms("2025-03-11T00:00:00Z")), p.blackouts);
+  const msg = "bob: rule boundary 2025-03-09T02:30 in America/New_York is nonexistent; resolved to 2025-03-09T07:00:00Z.";
+  it("emits one note per adjusted boundary for an overlapping instance", () => {
+    expect(adjustmentNotes(bob, open(bob), span("2025-03-09T08:00:00Z", "2025-03-09T09:00:00Z"))).toEqual([
+      { code: "DST_RULE_ADJUSTED", participantId: "bob", message: msg },
+    ]);
+  });
+  it("no note without strict overlap", () => {
+    expect(adjustmentNotes(bob, open(bob), span("2025-03-10T08:00:00Z", "2025-03-10T09:00:00Z"))).toEqual([]);
+    expect(adjustmentNotes(bob, open(bob), span("2025-03-09T06:00:00Z", "2025-03-09T07:00:00Z"))).toEqual([]);
+  });
+  it("one note per adjusted boundary, two instances, both listed", () => {
+    const p = {
+      ...party("America/New_York", {
+        saturday: [{ start: "22:00", end: "02:30" }],
+        sunday: [{ start: "02:30", end: "10:00" }],
+      }),
+      partyId: "p",
+    };
+    const notes = adjustmentNotes(p, open(p), span("2025-03-09T06:00:00Z", "2025-03-09T09:00:00Z"));
+    expect(notes).toHaveLength(2);
+    expect(notes.every((n) => n.message.endsWith("resolved to 2025-03-09T07:00:00Z."))).toBe(true);
   });
 });
