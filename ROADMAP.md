@@ -75,7 +75,7 @@ Six milestones over about six weeks, ending in the **first release, `v0.1.0`** o
 - [x] Core purity check CORE-40 passes (no `Date.now`, no raw `Date`, no `process`, no `fs`). Proved by `packages/core/test/purity.test.ts` (source scan plus lint-rule tests) inside `pnpm test`, and `pnpm lint` exit 0.
 - [x] 95%+ line and branch coverage on the files added in this milestone. Proved by `pnpm test:coverage` exit 0 on the fresh clone, with the gate in `packages/core/vitest.config.ts` (A-58): core 100% lines (106/106) and 100% branches (81/81) at 3f648cc (105/105 and 79/79 at the first fresh clone) over `zones`, `intervals`, `render`, `reasons`, `gates`, `evaluate`.
 - [x] `ASSUMPTIONS.md` updated for anything newly decided. A-50 … A-60 added.
-- [ ] CI green on the four matrix jobs for M2a. Awaits the push gate (Task 8 Step 6); nothing CI-dependent is ticked. Fresh-clone exit codes, all 0: `pnpm install --frozen-lockfile`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm test:coverage`, `pnpm build`, `pnpm gen:schema` (followed by an empty `git status --short`).
+- [x] CI green on the four matrix jobs for M2a. Proved by GitHub Actions run 41702963959 on `main` at 685cef9 (pushed 2026-11-03): `verify` succeeded on ubuntu-latest and windows-latest, each on Node 24 and Node 26 (4/4). Fresh-clone exit codes, all 0: `pnpm install --frozen-lockfile`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm test:coverage`, `pnpm build`, `pnpm gen:schema` (followed by an empty `git status --short`).
 
 ---
 
