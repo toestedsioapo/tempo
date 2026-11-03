@@ -24,8 +24,10 @@ import type {
   ZoneIdSchema,
 } from "./schema.js";
 
-export type NegotiationRequest = z.infer<typeof NegotiationRequestSchema>;
-export type NegotiationRequestInput = z.input<typeof NegotiationRequestSchema>;
+/** What callers send (SPEC §3.2): defaulted fields (`blackouts`, `options.*` except `now`) are optional. */
+export type NegotiationRequest = z.input<typeof NegotiationRequestSchema>;
+/** The parsed form with every default filled in; what the engine works on. */
+export type ResolvedNegotiationRequest = z.infer<typeof NegotiationRequestSchema>;
 export type MeetingRequest = z.infer<typeof MeetingRequestSchema>;
 export type PartyRules = z.infer<typeof PartyRulesSchema>;
 export type Interval = z.infer<typeof IntervalSchema>;

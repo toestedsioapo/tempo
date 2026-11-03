@@ -67,7 +67,7 @@ ADRs are kept in §4 of this file for now (A-19). Test files sit beside the code
 | `@marvinliem/tempo-core` | Pure engine: `evaluate`, `suggest`, `explain`, types, Zod schemas, fixtures | luxon, zod | read `now` from its input | `Date.now()`, `new Date()`, `process.env`, `fs`, network, randomness, `throw` for expected failures, raw JS `Date` math |
 | `@marvinliem/tempo` | Argument parsing, file/stdin IO, output, exit codes, real clock | `@marvinliem/tempo-core` | read the clock (in `clock.ts` only), write stdout/stderr, set exit code | decide anything about availability; prompt on a TTY |
 
-Core exports: `evaluate`, `suggest`, `explain`, the Zod schemas, the inferred types, and `@marvinliem/tempo-core/fixtures` (the SPEC worked examples and the edge-case catalogue; kept stable for Deskbench). `schema/rules.schema.json` ships in the package (A-22). Semver is strict: Deskhand MCP pins a major.
+Core exports (named exports only, pinned by `public-api.test.ts`; G31): `evaluate`, `suggest`, `explain`, the request / result / explain Zod schemas, `DAY_NAMES`, the inferred types (`NegotiationRequest` is the input type, `ResolvedNegotiationRequest` the parsed one; G30), and `@marvinliem/tempo-core/fixtures` (the SPEC worked examples and the edge-case catalogue; kept stable for Deskbench). `schema/rules.schema.json` ships in the package (A-22). Semver is strict: Deskhand MCP pins a major.
 
 ## 3. Public API (types only; details in SPEC §3)
 
