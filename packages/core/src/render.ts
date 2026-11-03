@@ -7,7 +7,8 @@ export function formatUtc(ms: number): UtcInstant {
 }
 
 function formatLocal(ms: number, zone: ZoneId): string {
-  if (zone === "UTC" || zone === "GMT") return formatUtc(ms);
+  const upper = zone.toUpperCase();
+  if (upper === "UTC" || upper === "GMT") return formatUtc(ms);
   return DateTime.fromMillis(ms, { zone }).toFormat("yyyy-MM-dd'T'HH:mm:ssZZ");
 }
 

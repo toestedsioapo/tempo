@@ -8,9 +8,8 @@ const repoRoot = resolve(import.meta.dirname, "../../..");
 const fixturesDir = resolve(import.meta.dirname, "../fixtures/examples");
 const extracted = extractFixtures(readFileSync(join(repoRoot, "SPEC.md"), "utf8"));
 
-// EX-10 is INVALID_INPUT by design. EX-09/12/13/23 inputs are schema-valid-ish but fail later in the pipeline
-// (assert only that `input` is an object for those; EX-09 and EX-23 carry deliberately bad rule/zone data).
-const NOT_SCHEMA_CHECKED = new Set(["EX-09", "EX-10", "EX-12", "EX-13", "EX-23"]);
+// EX-10 is INVALID_INPUT by design, so its input does not parse; every other example gets the shape check.
+const NOT_SCHEMA_CHECKED = new Set(["EX-10"]);
 
 describe("fixtures drift (SPEC.md section 6 -> fixtures/examples)", () => {
   it("extracts 24 examples EX-01..EX-24 in order", () => {
@@ -42,5 +41,13 @@ describe("fixtures drift (SPEC.md section 6 -> fixtures/examples)", () => {
       "- frobnicate: yes",
     );
     expect(() => extractFixtures(spec)).toThrow(/EX-01.*frobnicate: yes/);
+  });
+
+  it("fails loudly on a stray non-bullet line in an Input block (outside the known prose notes)", () => {
+    const spec = readFileSync(join(repoRoot, "SPEC.md"), "utf8").replace(
+      "- options: now=`2025-01-03T12:00:00Z` (other options at defaults)",
+      "- options: now=`2025-01-03T12:00:00Z` (other options at defaults)\nstray prose line",
+    );
+    expect(() => extractFixtures(spec)).toThrow(/EX-01.*stray prose line/);
   });
 });

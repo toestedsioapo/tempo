@@ -370,3 +370,25 @@ describe("determinism and ordering", () => {
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 });
+
+describe("DST-gap request times before M2b (A-53)", () => {
+  // SPEC §4.1 step 4 / C10 (M2b) will reject these with DST_NONEXISTENT_LOCAL_TIME.
+  it.todo("M2b/C10: NY 2025-03-09 02:30-03:15 is DST_NONEXISTENT_LOCAL_TIME");
+  it.todo("M2b/C10: NY 2025-03-09 02:30-03:30 is DST_NONEXISTENT_LOCAL_TIME");
+  it("zero-length span with a blacked-out party gives OUTSIDE_AVAILABILITY, not INVALID_INPUT", () => {
+    const r = run(
+      scenario({
+        date: "2025-03-09",
+        start: "02:30",
+        end: "03:30",
+        zone: "America/New_York",
+        parties: [
+          utc("a", { sunday: [day("07:00", "07:30")] }, ["2025-03-09"]),
+          utc("b", { sunday: [day("00:00", "24:00")] }),
+        ],
+      }),
+    );
+    expect(r.ok && r.decision).toBe("counter_offer");
+    expect(codes(r)).toEqual(["OUTSIDE_AVAILABILITY:a"]);
+  });
+});
