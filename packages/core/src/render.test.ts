@@ -22,7 +22,7 @@ describe("toIsoSlot (SPEC 4.9)", () => {
     expect(toIsoSlot(slot("2025-01-06T14:30:00Z", "2025-01-06T15:30:00Z"), "Europe/London").start).toBe(
       "2025-01-06T14:30:00+00:00",
     ));
-  it.each(["UTC", "GMT"])("%s renders Z", (z) =>
+  it.each(["UTC", "GMT", "utc", "Utc", "gmt"])("%s renders Z", (z) =>
     expect(toIsoSlot(slot("2025-01-06T14:30:00Z", "2025-01-06T15:30:00Z"), z).start).toBe("2025-01-06T14:30:00Z"));
   it("Kathmandu is +05:45", () =>
     expect(toIsoSlot(slot("2025-01-06T14:30:00Z", "2025-01-06T15:30:00Z"), "Asia/Kathmandu").start).toBe(

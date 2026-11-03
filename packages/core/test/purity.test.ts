@@ -65,21 +65,50 @@ describe("core purity lint rules", () => {
 
 // CORE-40: source scan. Comments are stripped with a regex, so a banned token inside a
 // string literal that contains "//" could be missed; the lint rules above are the primary guard.
+const BANNED = [
+  /Date\.now/,
+  /new Date/,
+  /Math\.random/,
+  /process\./,
+  /globalThis\.process/,
+  /node:fs/,
+  /from\s+["']fs["']/,
+  /require\(\s*["'](node:)?fs["']\s*\)/,
+];
+
+function scanSource(label: string, src: string): string[] {
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  const found: string[] = [];
+  code.split(/\r?\n/).forEach((line, i) => {
+    if (BANNED.some((re) => re.test(line))) found.push(`${label}:${i + 1}: ${line.trim()}`);
+  });
+  return found;
+}
+
+function sourceFiles(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const full = resolve(dir, e.name);
+    if (e.isDirectory()) return sourceFiles(full);
+    return e.name.endsWith(".ts") && !e.name.endsWith(".test.ts") ? [full] : [];
+  });
+}
+
 describe("core purity source scan (CORE-40)", () => {
   const srcDir = resolve(repoRoot, "packages/core/src");
-  const banned = [/Date\.now/, /new Date/, /process\./, /node:fs/, /from "fs"/];
 
-  it("no non-test source line uses the clock, process or fs", () => {
-    const offenders: string[] = [];
-    for (const name of readdirSync(srcDir)) {
-      if (!name.endsWith(".ts") || name.endsWith(".test.ts")) continue;
-      const code = readFileSync(resolve(srcDir, name), "utf8")
-        .replace(/\/\*[\s\S]*?\*\//g, "")
-        .replace(/\/\/.*$/gm, "");
-      code.split(/\r?\n/).forEach((line, i) => {
-        if (banned.some((re) => re.test(line))) offenders.push(`${name}:${i + 1}: ${line.trim()}`);
-      });
-    }
+  it("no non-test source line uses the clock, randomness, process or fs", () => {
+    const files = sourceFiles(srcDir);
+    expect(files.length).toBeGreaterThan(5);
+    const offenders = files.flatMap((f) => scanSource(f, readFileSync(f, "utf8")));
     expect(offenders).toEqual([]);
+  });
+
+  it("the scanner flags a planted offender but not one inside a comment", () => {
+    expect(scanSource("x", "const t = Date.now();")).toHaveLength(1);
+    expect(scanSource("x", "const r = Math.random();")).toHaveLength(1);
+    expect(scanSource("x", "import fs from 'fs';")).toHaveLength(1);
+    expect(scanSource("x", 'const fs = require("fs");')).toHaveLength(1);
+    expect(scanSource("x", "const p = globalThis.process;")).toHaveLength(1);
+    expect(scanSource("x", "// Date.now() is banned\n/* new Date() */\nconst a = 1;")).toEqual([]);
   });
 });

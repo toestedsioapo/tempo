@@ -66,7 +66,7 @@ Six milestones over about six weeks, ending in the **first release, `v0.1.0`** o
 * Request interval incl. `end < start` ⇒ next day (C7); `start == end` is already rejected by the M1 schema (G23); time gates `IN_PAST`, `INSUFFICIENT_NOTICE` (C8): CORE-22, CORE-23.
 * `evaluate()` returning the decision and reasons. For a `counter_offer`, `slots` is not computed yet; the examples that need ranked slots are marked `todo` until M2b.
 * Oracle ORC-01 (decision only) and ORC-02.
-* Worked examples fully passing in M2a: **EX-01, EX-03, EX-05, EX-07, EX-08, EX-09, EX-10, EX-14, EX-15, EX-23**. Decision-and-reason assertions only for the rest.
+* Worked examples fully passing in M2a: **EX-01, EX-03, EX-05, EX-07, EX-08, EX-09, EX-10, EX-14, EX-15, EX-16, EX-23**. Decision-and-reason assertions only for the rest.
 
 **Definition of done**
 
@@ -100,6 +100,14 @@ Six milestones over about six weeks, ending in the **first release, `v0.1.0`** o
 - [ ] Output is deterministic (INV-06) and participant-order independent (INV-07).
 - [ ] Core coverage ≥ 95% line and branch (QG-01).
 - [ ] Every ErrorCode and ReasonCode in SPEC §3 is produced by at least one test.
+
+**Notes carried from M2a review**
+
+- `dst.ts` needs a classifier that returns the 0/1/2 candidate instants plus the offsets before and after the transition; `wallTimeToMs` returns one number, and the C10 error details need more. ARCHITECTURE.md:43 puts wall-time to instant in `dst.ts`, while it lives in `intervals.ts` today.
+- Decide what a rule whose start is pushed past its end by a DST gap means (for example 02:30-03:00 on a spring-forward day becomes negative, [07:30Z, 07:00Z]); SPEC is silent.
+- Add a direct `intervals` test where the party's local date differs from the UTC date for a blackout (Manila 07:00 is 23:00Z the previous day).
+- Lowercase `utc`/`gmt` request zones render `Z` (settled in the M2a fix wave, A-60).
+- Do not release between M2a and M2b: `evaluate` is public, and until C10 lands DST-gap request times are accepted (A-53).
 
 ---
 

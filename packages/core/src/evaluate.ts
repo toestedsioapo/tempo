@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
 import { applyBlackouts, contains, expandInstances, findInvalidInterval, mergeSpans } from "./intervals.js";
-import type { Instance, Span } from "./intervals.js";
+import type { Span } from "./intervals.js";
 import { parseNegotiationRequest } from "./parse.js";
 import { requestedSpan, timeGate } from "./gates.js";
 import { formatUtc, toIsoSlot } from "./render.js";
@@ -19,9 +19,10 @@ function participantReason(party: PartyRules, span: Span): Reason | null {
   const blocked = all
     .filter((i) => party.blackouts.includes(i.ownerDate) && i.startMs < span.endMs && i.endMs > span.startMs)
     .sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs)[0];
-  // Reaching here means the request is covered only with help from blacked-out instances, and a
-  // covering instance has positive overlap with the (positive-length) request, so one exists.
-  return inBlackout(party.partyId, (blocked as Instance).ownerDate);
+  // Normally a blacked-out instance overlaps the request. Until M2b's C10 check rejects request
+  // times inside a DST gap (A-53), such a time can give an inverted or zero-length span that no
+  // instance overlaps; report OUTSIDE_AVAILABILITY then instead of throwing.
+  return blocked ? inBlackout(party.partyId, blocked.ownerDate) : outsideAvailability(party.partyId);
 }
 
 function compute(request: ResolvedNegotiationRequest): NegotiationResult {

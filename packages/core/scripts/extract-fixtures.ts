@@ -84,6 +84,10 @@ function parseInput(id: string, lines: string[]): unknown {
   return { request, participants, options };
 }
 
+// SPEC §6 puts one explanatory prose paragraph (no bullet) after the Input bullets of exactly these
+// examples. They are skipped by id; a non-bullet line in any other example's Input block fails loudly.
+const PROSE_NOTE_EXAMPLES = new Set(["EX-12", "EX-13", "EX-23"]);
+
 export function extractFixtures(specText: string): { id: string; json: string }[] {
   const text = specText.replace(/\r\n/g, "\n");
   const headings = [...text.matchAll(/^### (EX-\d\d) — .*$/gm)];
@@ -97,6 +101,7 @@ export function extractFixtures(specText: string): { id: string; json: string }[
     for (const raw of lines.slice(inputAt + 1)) {
       if (raw.startsWith("**")) break;
       if (raw.startsWith("- ")) inputLines.push(raw.trimEnd());
+      else if (raw.trim() !== "" && !PROSE_NOTE_EXAMPLES.has(id)) fail(id, raw, "unrecognised non-bullet Input line");
     }
     const outAt = lines.findIndex((l) => l.startsWith("**Output**"));
     if (outAt < 0) fail(id, "**Output**", "heading not found");
