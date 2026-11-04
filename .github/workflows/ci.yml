@@ -37,3 +37,4 @@ jobs:
             packages/*/coverage/
           if-no-files-found: error
       - run: pnpm build
+      - run: node packages/cli/dist/bin.js --version
