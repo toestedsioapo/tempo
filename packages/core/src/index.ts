@@ -3,6 +3,7 @@
 // in DECISIONS.md. `formatIssuePath`, `IsoOffsetSchema` and `parseNegotiationRequest` stay
 // internal.
 export { evaluate } from "./evaluate.js";
+export { suggest } from "./suggest.js";
 
 export {
   DAY_NAMES,

@@ -25,6 +25,11 @@ export const inBlackout = (partyId: string, date: LocalDate): Reason => ({
   message: `${partyId}: availability is blocked by blackout date ${date}.`,
 });
 
+export const noSlotsInHorizon = (searchHorizonDays: number): Reason => ({
+  code: "NO_SLOTS_IN_HORIZON",
+  message: `No slot found within ${searchHorizonDays} days of the requested start.`,
+});
+
 export const dstRuleAdjusted = (partyId: string, a: BoundaryAdjustment, zone: ZoneId): Reason => ({
   code: "DST_RULE_ADJUSTED",
   participantId: partyId,

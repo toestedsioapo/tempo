@@ -150,7 +150,7 @@ describe("CORE-12 cross-zone owning date", () => {
       scenario({ start: "20:00", end: "21:00", zone: "America/New_York", parties: parties({ monday: [day("08:00", "11:00")] }) }),
     );
     expect(r.ok && r.decision).toBe("counter_offer");
-    expect(codes(r)).toEqual(["OUTSIDE_AVAILABILITY:bob"]);
+    expect(codes(r)).toEqual(["OUTSIDE_AVAILABILITY:bob", "NO_SLOTS_IN_HORIZON:"]);
   });
 });
 
@@ -237,7 +237,7 @@ describe("CORE-19..21", () => {
   });
   it("CORE-20 empty weeklyRules is OUTSIDE_AVAILABILITY", () => {
     const r = run(scenario({ start: "10:00", end: "11:00", parties: [utc("alice", {}), utc("bob", always)] }));
-    expect(codes(r)).toEqual(["OUTSIDE_AVAILABILITY:alice"]);
+    expect(codes(r)).toEqual(["OUTSIDE_AVAILABILITY:alice", "NO_SLOTS_IN_HORIZON:"]);
   });
   it("CORE-21 blackout vs outside, one reason per participant", () => {
     const r = run(
@@ -250,7 +250,7 @@ describe("CORE-19..21", () => {
         ],
       }),
     );
-    expect(codes(r)).toEqual(["IN_BLACKOUT:alice", "OUTSIDE_AVAILABILITY:bob"]);
+    expect(codes(r)).toEqual(["IN_BLACKOUT:alice", "OUTSIDE_AVAILABILITY:bob", "NO_SLOTS_IN_HORIZON:"]);
   });
   it("CORE-21 a rule that is blacked out but does not cover the request stays OUTSIDE_AVAILABILITY", () => {
     // 10:00-10:30 is blacked out on the day, but the request 10:00-11:00 was never inside any rule.
@@ -261,7 +261,7 @@ describe("CORE-19..21", () => {
         parties: [utc("alice", { monday: [day("10:00", "10:30")] }, ["2025-01-06"]), utc("bob", always)],
       }),
     );
-    expect(codes(r)).toEqual(["OUTSIDE_AVAILABILITY:alice"]);
+    expect(codes(r)).toEqual(["OUTSIDE_AVAILABILITY:alice", "NO_SLOTS_IN_HORIZON:"]);
   });
 });
 
@@ -318,10 +318,11 @@ describe("gate reasons first (CORE-22/23)", () => {
       "Requested start 2025-01-06T09:30:00Z is earlier than now plus 60 minutes (2025-01-06T10:00:00Z).",
     );
   });
-  it("gate failure alone is a counter_offer with no slots", () => {
+  it("gate failure alone is a counter_offer with ranked alternatives after the bound", () => {
     const r = run(scenario({ start: "09:30", end: "09:45", now: "2025-01-06T12:00:00Z", parties }));
     expect(r.ok && r.decision).toBe("counter_offer");
-    expect(r.ok && r.slots).toEqual([]);
+    // The closest fitting start after now is the next Monday 09:00 (7 d - 30 min away).
+    expect(r.ok && r.slots.map((s) => s.startUtc)).toEqual(["2025-01-13T09:00:00Z", "2025-01-13T09:15:00Z", "2025-01-13T09:30:00Z"]);
     expect(codes(r)).toEqual(["IN_PAST:"]);
   });
 });
@@ -429,6 +430,7 @@ describe("DST_RULE_ADJUSTED notes (A-61, G34)", () => {
   it("no note on another day", () => {
     expect(codes(req("2025-03-10", "04:00", "05:00", [utc("alice", { monday: [day("00:00", "24:00")] }), bob]))).toEqual([
       "OUTSIDE_AVAILABILITY:bob",
+      "NO_SLOTS_IN_HORIZON:",
     ]);
   });
   it("no note when the request ends exactly at the instance start", () => {
@@ -445,6 +447,6 @@ describe("DST_RULE_ADJUSTED notes (A-61, G34)", () => {
     const zed = { id: "zed", zone: "America/New_York", rules: { sunday: [day("02:30", "10:00")] } };
     const bob2 = { ...bob, rules: { sunday: [day("02:30", "06:00")] } };
     const r = req("2025-03-09", "04:00", "08:00", [zed, bob2, alice]);
-    expect(codes(r)).toEqual(["OUTSIDE_AVAILABILITY:bob", "DST_RULE_ADJUSTED:bob", "DST_RULE_ADJUSTED:zed"]);
+    expect(codes(r)).toEqual(["OUTSIDE_AVAILABILITY:bob", "DST_RULE_ADJUSTED:bob", "DST_RULE_ADJUSTED:zed", "NO_SLOTS_IN_HORIZON:"]);
   });
 });
