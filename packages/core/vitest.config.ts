@@ -5,20 +5,10 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov", "json-summary"],
-      // M2a gate (A-58): only the files added in M2a; M2b widens it to all of core.
-      include: [
-        "src/zones.ts",
-        "src/intervals.ts",
-        "src/render.ts",
-        "src/reasons.ts",
-        "src/gates.ts",
-        "src/evaluate.ts",
-        "src/dst.ts",
-        "src/internal-error.ts",
-        "src/availability.ts",
-        "src/search.ts",
-        "src/suggest.ts",
-      ],
+      // M2b widened the A-58 gate to all of core (QG-01): every source file except tests and the
+      // `index.ts` re-export barrel (no logic) and the type-only `types.ts`.
+      include: ["src/**/*.ts"],
+      exclude: ["src/**/*.test.ts", "src/index.ts", "src/types.ts"],
       thresholds: { lines: 95, branches: 95 },
     },
   },

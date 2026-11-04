@@ -1,6 +1,7 @@
 # Tempo — TEST_PLAN.md
 
-> **Status:** APPROVED (planning round 3). Nothing here is implemented yet. **No production code without a failing test first** (`CLAUDE.md`).
+> **Status:** APPROVED (planning round 3). **No production code without a failing test first** (`CLAUDE.md`).
+> **Implemented through M2b (core):** CORE-24 … CORE-39, CORE-43, INV-01 … INV-14, ORC-01, ORC-02, G-01 … G-05, DOC-02 (see ROADMAP M2b for the proving commands); the CLI rows (CLI-nn) are M3. Deviations from the wording of INV-03 and INV-11 are recorded as A-67.
 > **Precedence:** `DECISIONS.md` is the source of truth. Section 9 proves every decision row and every SPEC example is covered.
 > **Assumptions:** `A-nn` in [`ASSUMPTIONS.md`](./ASSUMPTIONS.md).
 
