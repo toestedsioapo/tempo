@@ -7,7 +7,7 @@ import { DateTime } from "luxon";
 import { describe, expect, it } from "vitest";
 import { evaluate, suggest } from "../../src/index.js";
 import type { NegotiationRequest, NegotiationResult } from "../../src/index.js";
-import { dstFocusedInputArb, hasMidnightTouchingChain, negotiationInputArb, transitionDates } from "../generators.js";
+import { coverWeekly, dstFocusedInputArb, hasMidnightTouchingChain, negotiationInputArb, transitionDates } from "../generators.js";
 import type { DifferentialInput } from "../generators.js";
 import { propRuns, propTimeoutMs } from "../runs.js";
 import { oracleSlots } from "./oracle.js";
@@ -113,5 +113,33 @@ describe("ORC-01 pinned rows", () => {
     agrees(input);
     const r = suggest(input as NegotiationRequest);
     expect(r.ok && r.slots.map((x) => x.startUtc)).toEqual(["2025-01-07T09:00:00Z"]);
+  });
+});
+
+describe("generator validity guard", () => {
+  it("no generated rule has start == end (G23: that is INVALID_INTERVAL, not an oracle case)", () => {
+    // Regression for seed 177050573: Berlin 2026-03-29 produced 00:00-00:00 from a 23-hour day.
+    fc.assert(
+      fc.property(negotiationInputArb(), dstFocusedInputArb(), (a, b) => {
+        for (const input of [a, b]) {
+          for (const p of input.participants) {
+            for (const rules of Object.values(p.weeklyRules)) {
+              for (const r of rules ?? []) expect(r.start).not.toBe(r.end);
+            }
+          }
+        }
+      }),
+      { numRuns: 3000 },
+    );
+  }, TIMEOUT_MS);
+
+  it("the Berlin spring-forward day: a 1,380-minute piece becomes 00:00-24:00, not 00:00-00:00", () => {
+    const from = DateTime.fromISO("2026-03-29T00:00", { zone: "Europe/Berlin" });
+    const to = from.plus({ minutes: 1380 }); // the whole 23-hour local day
+    expect(coverWeekly(from, to, [], [], false, false)).toEqual({ sunday: [{ start: "00:00", end: "24:00" }] });
+    // Not at midnight: end one minute earlier rather than start == end.
+    const noon = DateTime.fromISO("2026-03-29T12:00", { zone: "Europe/Berlin" });
+    const rules = coverWeekly(noon, noon.plus({ minutes: 1380 }), [], [], false, false);
+    for (const list of Object.values(rules)) for (const r of list ?? []) expect(r.start).not.toBe(r.end);
   });
 });

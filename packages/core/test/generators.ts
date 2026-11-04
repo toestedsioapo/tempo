@@ -124,7 +124,7 @@ export const rulesArb: fc.Arbitrary<Weekly> = fc
  * cuts alone land on midnight about once in 1,800. Each piece is owned by the local date it
  * starts on (SPEC §4.3).
  */
-function coverWeekly(
+export function coverWeekly(
   from: DateTime,
   to: DateTime,
   cuts: readonly number[],
@@ -155,9 +155,14 @@ function coverWeekly(
     const b = Math.min((points[i + 1] as number) + extend, a + 1439);
     const s = from.plus({ minutes: a });
     const e = from.plus({ minutes: b });
-    const endText = wallMinutes(e) === 0 && use2400 ? "24:00" : hhmm(wallMinutes(e));
+    const startText = hhmm(wallMinutes(s));
+    let endText = wallMinutes(e) === 0 && use2400 ? "24:00" : hhmm(wallMinutes(e));
+    // A piece that crosses a spring-forward gap can span exactly 24 wall hours (e.g. Berlin 2026-03-29,
+    // 1,380 real minutes): start == end is INVALID_INTERVAL (G23), so make it the whole local day, or
+    // end one minute earlier.
+    if (endText === startText) endText = startText === "00:00" ? "24:00" : hhmm(wallMinutes(e.minus({ minutes: 1 })));
     const day = weekdayOf(s);
-    out[day] = [...(out[day] ?? []), { start: hhmm(wallMinutes(s)), end: endText }];
+    out[day] = [...(out[day] ?? []), { start: startText, end: endText }];
   }
   return out;
 }
