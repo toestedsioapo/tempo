@@ -4,7 +4,7 @@ import { commands } from "./commands.js";
 import { EXIT, exitCodeForError } from "./exit-codes.js";
 import { cliError, decodeInput, parseJsonText, type Env } from "./io.js";
 import { withNow } from "./now.js";
-import { renderErrorLine, renderJson } from "./render.js";
+import { renderErrorLine, renderHuman, renderJson } from "./render.js";
 
 type Loaded = { ok: true; value: unknown } | { ok: false; error: ErrorResult };
 
@@ -68,7 +68,7 @@ async function run(argv: string[], env: Env): Promise<number> {
       const input = withNow(loaded.value, parsed.now, () => env.now());
       const result = commands[parsed.command](input as NegotiationRequest);
       if (!result.ok) return emitError(env, parsed.json, result);
-      env.write(renderJson(result));
+      env.write(parsed.json ? renderJson(result) : renderHuman(parsed.command, result));
       return parsed.exitCode && result.decision === "counter_offer" ? EXIT.COUNTER_OFFER : EXIT.OK;
     }
   }
