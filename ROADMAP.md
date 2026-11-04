@@ -89,17 +89,19 @@ Six milestones over about six weeks, ending in the **first release, `v0.1.0`** o
 * Rule-boundary policy and `DST_RULE_ADJUSTED` (A-07): CORE-38.
 * Counter-offer search on the lattice, ranking, tie-break, greedy non-overlapping selection (G22), `NO_SLOTS_IN_HORIZON` (C9): CORE-24 … CORE-34, CORE-43.
 * `suggest()` and `explain()` (D15).
-* All property invariants INV-01 … INV-13 with the generators G-01 … G-05 (E18); the full differential oracle ORC-01 incl. slots.
+* All property invariants INV-01 … INV-14 with the generators G-01 … G-05 (E18); the full differential oracle ORC-01 incl. slots.
 * **All 24 worked examples pass** with byte-exact output.
 
 **Definition of done**
 
-- [ ] EX-01 … EX-24 pass; DOC-02 confirms SPEC.md and fixtures agree.
-- [ ] INV-01 … INV-13 green at 200 runs on PR; a 5,000-run nightly job is configured.
-- [ ] ORC-01 agrees with `evaluate` on decisions **and** ranked slots.
-- [ ] Output is deterministic (INV-06) and participant-order independent (INV-07).
-- [ ] Core coverage ≥ 95% line and branch (QG-01).
-- [ ] Every ErrorCode and ReasonCode in SPEC §3 is produced by at least one test.
+- [x] EX-01 … EX-24 pass; DOC-02 confirms SPEC.md and fixtures agree. Proved: `examples.test.ts` runs all 24 in the exact tier (the decision tier is deleted; EX-22 goes through `explain`), `fixtures-drift.test.ts` regenerates all 24 from SPEC §6 and compares byte for byte.
+- [x] INV-01 … INV-14 green at 200 runs on PR; a 5,000-run nightly job is configured. Proved: `test/invariants.prop.test.ts` at the default 200; one local pass with `TEMPO_PROP_RUNS=5000` (about 51 min) found INV-03's A-67 restatability limit, fixed and pinned (seed -551987296), then INV-03 and the regression re-ran green at 5,000 and the rest of both property files passed at 5,000. The review then strengthened INV-08, INV-09, INV-10 and INV-12; those four ran green at 1,000 (not 5,000) before the merge, and the first nightly run will exercise them at 5,000. `.github/workflows/nightly.yml` (cron `0 3 * * *` + `workflow_dispatch`, `TEMPO_PROP_RUNS: "5000"`) is pinned by `test/nightly-workflow.test.ts`; it has not run on GitHub yet.
+- [x] ORC-01 agrees with `evaluate` on decisions **and** ranked slots. Proved: `test/oracle/differential.prop.test.ts` compares decision, failing parties, gate, exact ranked slots (`evaluate` on a counter_offer, `suggest` always) and the C10 request-time errors, with DST-weighted generators plus a directed DST generator; ORC-02 covers all 24 examples including EX-24 and slots. Mutation checks on `search.ts` (touching slots dropped, later-first tie-break, exclusive horizon) are all caught.
+- [x] Output is deterministic (INV-06) and participant-order independent (INV-07). Proved: `test/invariants.prop.test.ts` for `evaluate`, `suggest` and `explain`.
+- [x] Core coverage ≥ 95% line and branch (QG-01). Proved on a fresh clone of `m2b/t07-closeout` (code commit 0d2489c; Windows, pnpm 12.15.0, Node 24.11.1): `pnpm test:coverage` exit 0, core 100 % statements, 100 % lines, 99.39 % branches (165/166, `parse.ts:30`) over **all** of core (A-70 for the include list).
+- [x] Every ErrorCode and ReasonCode in SPEC §3 is produced by at least one test. Proved: `test/codes.test.ts` (`INTERNAL_ERROR` via the mocked search path; `OK` is explain-only).
+- [x] Fresh-clone run (same clone, Windows, Node 24.11.1, pnpm 12.15.0): `pnpm install --frozen-lockfile`, `pnpm typecheck`, `pnpm lint`, `pnpm test` (repo 26 passed + 1 todo, core 593 passed, cli 9 passed), `pnpm test:coverage`, `pnpm build` and `pnpm gen:schema` all exit 0, and `git status --short` is empty afterwards. The one repo todo is SKILL.md (M4). Search timing: `searchHorizonDays 90, searchStepMinutes 1, maxSuggestions 10` on a two-party request takes about 24 ms.
+- [ ] CI green on all 4 matrix jobs (ubuntu/windows × Node 24/26) after the push. Pending the push gate; nothing has been pushed.
 
 **Notes carried from M2a review**
 
@@ -107,7 +109,7 @@ Six milestones over about six weeks, ending in the **first release, `v0.1.0`** o
 - Decide what a rule whose start is pushed past its end by a DST gap means (for example 02:30-03:00 on a spring-forward day becomes negative, [07:30Z, 07:00Z]); SPEC is silent. **Resolved by G34:** a gap boundary resolves to the transition instant, and a rule wholly inside the gap is dropped (Task 3).
 - Add a direct `intervals` test where the party's local date differs from the UTC date for a blackout (Manila 07:00 is 23:00Z the previous day).
 - Lowercase `utc`/`gmt` request zones render `Z` (settled in the M2a fix wave, A-60).
-- Do not release between M2a and M2b: `evaluate` is public, and until C10 lands DST-gap request times are accepted (A-53).
+- Do not release between M2a and M2b: `evaluate` is public, and until C10 lands DST-gap request times are accepted (A-53). **Resolved by M2b Task 1.** `suggest` and `explain` are new public API: the version to release is the owner's call (not decided here).
 
 ---
 
