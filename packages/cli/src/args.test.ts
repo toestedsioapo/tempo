@@ -74,7 +74,7 @@ describe("parseCli: usage errors (CLI-16)", () => {
 describe("helpText", () => {
   it("is ASCII-only", () => {
     for (const c of [undefined, "check", "suggest", "explain"] as const) {
-      expect(helpText(c)).toMatch(/^[\x00-\x7f]*$/);
+      expect(helpText(c)).toMatch(/^[\n\x20-\x7e]*$/);
     }
   });
 
