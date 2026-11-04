@@ -135,6 +135,125 @@ describe("CORE-34 explain agrees with evaluate", () => {
   });
 });
 
+describe("CORE-33 additional trace cases", () => {
+  const rules = (weeklyRules: unknown, blackouts?: string[]) => ({
+    partyId: "alice",
+    timeZone: "UTC",
+    weeklyRules,
+    ...(blackouts ? { blackouts } : {}),
+  });
+  const single = (alice: unknown, req: Record<string, string>, options: Record<string, unknown> = {}) =>
+    asReq({
+      request: { date: "2025-01-06", timeZone: "UTC", ...req },
+      participants: [alice, { partyId: "bob", timeZone: "UTC", weeklyRules: { monday: [{ start: "00:00", end: "24:00" }] } }],
+      options: { now: "2025-01-03T12:00:00Z", ...options },
+    });
+
+  it("two instances contain the start: ruleMatched is the earliest-starting one (SPEC §3.6)", () => {
+    const r = ok(
+      explain(
+        single(rules({ monday: [{ start: "10:00", end: "14:00" }, { start: "09:00", end: "12:00" }] }), {
+          start: "10:30",
+          end: "11:00",
+        }),
+      ),
+    );
+    expect(r.requested.checks[0]?.ruleMatched).toMatchObject({ start: "09:00", end: "12:00" });
+  });
+
+  it("a blacked-out instance is skipped and the next open one is reported", () => {
+    // Sunday 22:00-12:00 (owner 2025-01-05, blacked out) and Monday 09:00-12:00 both contain Monday 10:30.
+    const r = ok(
+      explain(
+        single(
+          rules({ sunday: [{ start: "22:00", end: "12:00" }], monday: [{ start: "09:00", end: "12:00" }] }, ["2025-01-05"]),
+          { start: "10:30", end: "11:00" },
+        ),
+      ),
+    );
+    expect(r.requested.checks[0]).toMatchObject({ pass: true, ruleMatched: { weekday: "monday", ownerDate: "2025-01-06" } });
+  });
+
+  it("a failing overnight request has ruleMatched null", () => {
+    const r = ok(explain(single(rules({ sunday: [{ start: "22:00", end: "06:00" }] }), { start: "05:30", end: "06:30" })));
+    expect(r.requested.checks[0]).toEqual({
+      participant: "alice",
+      ruleMatched: null,
+      pass: false,
+      reasonCode: "OUTSIDE_AVAILABILITY",
+    });
+  });
+
+  it("candidate traces carry their own slot, sorted checks and rule matches", () => {
+    const r = ok(explain(asReq(withChange(["request", "start"], "08:30"))));
+    const first = r.candidates[0];
+    expect(first?.slot.startUtc).toBeDefined();
+    expect(first?.checks.map((c) => c.participant)).toEqual(["alice", "bob"]);
+    for (const c of first?.checks ?? []) {
+      expect(c.ruleMatched).not.toBeNull();
+      expect(c.reasonCode).toBe("OK");
+    }
+    const e = evaluate(asReq(withChange(["request", "start"], "08:30")));
+    expect(r.candidates.map((c) => c.slot)).toEqual(e.ok ? e.slots : null);
+  });
+
+  it("counter_offer with no slot in the horizon: candidates [] and NO_SLOTS_IN_HORIZON last", () => {
+    const input = single(rules({}), { start: "10:00", end: "11:00" }, { searchHorizonDays: 1 });
+    const r = ok(explain(input));
+    expect(r.decision).toBe("counter_offer");
+    expect(r.candidates).toEqual([]);
+    expect(r.reasons.at(-1)?.code).toBe("NO_SLOTS_IN_HORIZON");
+    expect(r).toEqual({ ...r, reasons: (evaluate(input) as { reasons: unknown[] }).reasons });
+  });
+
+  it("DST_RULE_ADJUSTED requests: explain still agrees with evaluate", () => {
+    const input = asReq({
+      request: { date: "2025-03-09", start: "03:00", end: "03:15", timeZone: "America/New_York" },
+      participants: [
+        { partyId: "alice", timeZone: "America/New_York", weeklyRules: { sunday: [{ start: "02:30", end: "10:00" }] } },
+        { partyId: "bob", timeZone: "UTC", weeklyRules: { sunday: [{ start: "00:00", end: "24:00" }] } },
+      ],
+      options: { now: "2025-03-01T00:00:00Z" },
+    });
+    const e = evaluate(input);
+    const x = ok(explain(input));
+    expect(e.ok && e.reasons.map((r) => r.code)).toContain("DST_RULE_ADJUSTED");
+    expect(x.reasons).toEqual(e.ok ? e.reasons : null);
+    expect(x.decision).toBe(e.ok ? e.decision : null);
+  });
+
+  it("the 50 CORE-34 inputs cover book, counter_offer and gate failures", () => {
+    // Guards the generator: see the CORE-34 block above.
+    const decisions = new Set<string>();
+    for (let i = 0; i < 50; i++) {
+      const input = validRequest() as { request: Record<string, unknown> };
+      const m = 6 * 60 + i * 20;
+      input.request.start = `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+      input.request.end = `${String(Math.floor((m + 30) / 60) % 24).padStart(2, "0")}:${String((m + 30) % 60).padStart(2, "0")}`;
+      const r = explain(asReq(input));
+      if (r.ok) decisions.add(r.decision);
+    }
+    expect([...decisions].sort()).toEqual(["book", "counter_offer"]);
+  });
+
+  it("an ambiguous zone and a DST-ambiguous time give evaluate's error through explain", () => {
+    const ist = withChange(["participants", 0, "timeZone"], "IST");
+    const amb = asReq({
+      request: { date: "2025-11-02", start: "01:30", end: "02:30", timeZone: "America/New_York" },
+      participants: [
+        { partyId: "a", timeZone: "UTC", weeklyRules: {} },
+        { partyId: "b", timeZone: "UTC", weeklyRules: {} },
+      ],
+      options: { now: "2025-10-01T00:00:00Z" },
+    });
+    for (const input of [asReq(ist), amb]) {
+      const e = evaluate(input);
+      expect(e.ok).toBe(false);
+      expect(explain(input)).toEqual(e);
+    }
+  });
+});
+
 describe("EX-22 byte-exact", () => {
   it("matches the fixture", () => {
     const f = JSON.parse(readFileSync(resolve(import.meta.dirname, "../fixtures/examples/ex-22.json"), "utf8")) as {

@@ -34,9 +34,8 @@ export interface Decision {
   readonly parties: readonly PartyRules[];
   readonly failed: boolean;
   readonly reasons: readonly Reason[];
-  /** Ranked search result as rendered slots, plus the spans they came from. */
-  readonly slots: readonly IsoSlot[];
-  readonly spans: readonly Span[];
+  /** Ranked search result: each slot with the span it was rendered from. */
+  readonly found: readonly { readonly span: Span; readonly slot: IsoSlot }[];
 }
 
 /**
@@ -80,7 +79,7 @@ export function decide(request: ResolvedNegotiationRequest, searchOnBook: boolea
   }
 
   const base = { span, requested, nowMs, noticeMinutes: options.minNoticeMinutes, gate, parties, failed };
-  if (!failed && !searchOnBook) return { ...base, reasons, slots: [requested], spans: [span] };
+  if (!failed && !searchOnBook) return { ...base, reasons, found: [{ span, slot: requested }] };
 
   const spans = searchSlots({
     requested: span,
@@ -90,9 +89,9 @@ export function decide(request: ResolvedNegotiationRequest, searchOnBook: boolea
     stepMinutes: options.searchStepMinutes,
     maxSuggestions: options.maxSuggestions,
   });
-  const slots = spans.map((s) => toIsoSlot(s, zone));
-  if (failed && slots.length === 0) reasons.push(noSlotsInHorizon(options.searchHorizonDays));
-  return { ...base, reasons, slots, spans };
+  const found = spans.map((s) => ({ span: s, slot: toIsoSlot(s, zone) }));
+  if (failed && found.length === 0) reasons.push(noSlotsInHorizon(options.searchHorizonDays));
+  return { ...base, reasons, found };
 }
 
 /** `evaluate`/`suggest` result from a decision (SPEC §3.3). */
@@ -103,7 +102,7 @@ export function negotiate(request: ResolvedNegotiationRequest, mode: "evaluate" 
     ok: true,
     decision: d.failed ? "counter_offer" : "book",
     requested: d.requested,
-    slots: [...d.slots],
+    slots: d.found.map((f) => f.slot),
     reasons: [...d.reasons],
   };
 }

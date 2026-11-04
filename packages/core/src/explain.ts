@@ -44,7 +44,7 @@ export function explain(input: NegotiationRequest): ExplainResult {
       decision: d.failed ? ("counter_offer" as const) : ("book" as const),
       reasons: [...d.reasons],
       requested: trace(d, d.span, d.requested),
-      candidates: d.failed ? d.spans.map((s, i) => trace(d, s, d.slots[i] as IsoSlot)) : [],
+      candidates: d.failed ? d.found.map((f) => trace(d, f.span, f.slot)) : [],
     };
   });
 }
