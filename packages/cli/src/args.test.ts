@@ -68,6 +68,8 @@ describe("parseCli: usage errors (CLI-16)", () => {
   it("remembers that --json was given, so the error can honour it", () => {
     expect(parseCli(["check", "--bogus", "--json"])).toMatchObject({ kind: "usage-error", json: true });
     expect(parseCli(["check", "--bogus"])).toMatchObject({ kind: "usage-error", json: false });
+    expect(parseCli(["check", "--json=1"])).toMatchObject({ kind: "usage-error", json: true });
+    expect(parseCli(["check", "--bogus", "--", "--json"])).toMatchObject({ kind: "usage-error", json: false });
   });
 });
 

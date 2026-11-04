@@ -29,7 +29,7 @@ const OPTIONS = {
 /** `--json` anywhere before a `--` terminator; used when `parseArgs` itself throws (A-73). */
 function sawJson(argv: string[]): boolean {
   const end = argv.indexOf("--");
-  return (end === -1 ? argv : argv.slice(0, end)).includes("--json");
+  return (end === -1 ? argv : argv.slice(0, end)).some((a) => a === "--json" || a.startsWith("--json="));
 }
 
 /** Only the first sentence: parseArgs appends a hint about `--` that does not apply here. */
