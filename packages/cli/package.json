@@ -4,10 +4,13 @@
   "type": "module",
   "license": "MIT",
   "author": "Marvin Liemor",
+  "bin": {
+    "tempo": "dist/bin.js"
+  },
   "exports": {
     ".": {
-      "types": "./dist/exit-codes.d.ts",
-      "import": "./dist/exit-codes.js"
+      "types": "./dist/main.d.ts",
+      "import": "./dist/main.js"
     }
   },
   "files": ["dist"],
