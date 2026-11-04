@@ -11,6 +11,7 @@ import type { NegotiationRequest, ResolvedNegotiationRequest } from "./index.js"
 const PUBLIC_VALUES = [
   "DAY_NAMES",
   "evaluate",
+  "explain",
   "ExplainResultSchema",
   "NegotiationRequestSchema",
   "NegotiationResultSchema",
