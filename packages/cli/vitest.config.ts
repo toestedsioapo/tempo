@@ -10,5 +10,12 @@ export default defineConfig({
     include: ["src/**/*.test.ts", "test/**/*.test.ts"],
     testTimeout: 30_000,
     hookTimeout: 30_000,
+    coverage: {
+      // QG-01: >= 95 % lines and branches. bin.ts is the thin real-Env shell (covered by the spawned
+      // tests, which v8 cannot see) and is excluded like core's index.ts barrel (A-70 style).
+      include: ["src/**/*.ts"],
+      exclude: ["src/**/*.test.ts", "src/bin.ts"],
+      thresholds: { lines: 95, branches: 95 },
+    },
   },
 });
