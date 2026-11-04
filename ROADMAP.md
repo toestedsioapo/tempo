@@ -128,11 +128,14 @@ Six milestones over about six weeks, ending in the **first release, `v0.1.0`** o
 
 **Definition of done**
 
-- [ ] CLI-01 … CLI-18 pass on Linux and Windows jobs.
-- [ ] Every `CLI exit code` line in SPEC §6 is asserted by a test.
-- [ ] Snapshots reviewed; each snapshot change is explained in its PR.
-- [ ] No interactive prompt anywhere (CLI-13).
-- [ ] `tempo --help` documents every flag and exit code.
+- [ ] CLI-01 … CLI-18 pass on Linux and Windows jobs. **Left unticked until `gh run view` shows all four jobs green after the push.** Local proof so far (Windows, Node 24.11.1, pnpm 12.15.0): `packages/cli` has 11 test files and 202 tests, all passing; CLI-01 … CLI-17 through `main` with a fake `Env` (`src/main.test.ts`, `src/render.test.ts`, `src/args.test.ts`, `src/now.test.ts`, `src/clock.test.ts`, `test/clock-purity.test.ts`), CLI-18 and CLI-13/CLI-11 through a real spawned process (`test/bin.test.ts`, 13 tests, with a path containing spaces and non-ASCII characters, CRLF, UTF-8 BOM and UTF-16LE BOM files, a closed stdout and no-input exits).
+- [x] Every `CLI exit code` line in SPEC §6 is asserted by a test. Proved: `src/spec-exit-codes.test.ts` parses the 24 `**CLI exit code:**` lines out of `SPEC.md`, fails on a line it does not recognise, and runs the CLI on each fixture with and without `--exit-code`.
+- [x] Snapshots reviewed; each snapshot change is explained in its PR. Proved: `src/__snapshots__/render.test.ts.snap` holds 10 snapshots (EX-01, 02, 17, 19, 20, 24 as `check`; EX-01, 17 as `suggest`; EX-22, 01 as `explain`). They are new in the Task 5 commit (first rendering, no earlier text to diff against); each was read against the plan's content rules before it was committed. `*.snap` is `eol=lf` in `.gitattributes` so Windows and Linux compare equal.
+- [x] No interactive prompt anywhere (CLI-13). Proved: `main` fails at once on a TTY without reading stdin (`src/main.test.ts`, `readStdin` not called), and a spawned child with stdin ignored or an empty pipe exits 2 instead of hanging (`test/bin.test.ts`); only `bin.ts` touches `process` (`test/closeout.test.ts`).
+- [x] `tempo --help` documents every flag and exit code. Proved: `src/args.test.ts` (every command, `--json`, `--exit-code`, `--now`, `--help`, `-h`, `--version` and a line for each of the exit codes 0 … 4, ASCII-only), `test/closeout.test.ts` (every code in `EXIT`).
+- [x] CLI coverage ≥ 95 % line and branch (QG-01). Proved on a fresh clone of `m3/t07-closeout` (code commit 0e77314; Windows, pnpm 12.15.0, Node 24.11.1): `pnpm test:coverage` exit 0, CLI 98.06 % statements, 98.48 % lines, 96.06 % branches over `src/**/*.ts` except tests and `bin.ts` (gate in `packages/cli/vitest.config.ts`).
+- [x] Fresh-clone run (same clone): `pnpm install --frozen-lockfile`, `pnpm typecheck`, `pnpm lint`, `pnpm test` (repo 26 passed + 1 todo, core 595 passed, cli 202 passed), `pnpm test:coverage`, `pnpm build` and `pnpm gen:schema` all exit 0, and `git status --short` is empty afterwards.
+- [x] By-hand runs of the built binary (`node packages/cli/dist/bin.js`, Windows PowerShell 5.1.26100 and Git Bash, request with the `partyId` `Zoë`): `explain f.json --json` (file), `cat f.json | tempo explain --json` / `Get-Content -Encoding UTF8 f.json | tempo explain --json` (pipe) and `tempo explain --json < f.json` (redirect, via `cmd /c` in PowerShell) give byte-identical output in Git Bash and in PowerShell; files saved by `Out-File` and `Set-Content -Encoding utf8` (UTF-8 with BOM here) give the same output as the plain file. **Environment limit, not a CLI bug (for the M4 README):** `Get-Content f.json | tempo` **without** `-Encoding UTF8` decodes a BOM-less UTF-8 file as ANSI before the process sees it, so `Zoë` arrives as `ZoÃ«`; use `-Encoding UTF8`, pass the file path, or use `<` redirection.
 
 ---
 

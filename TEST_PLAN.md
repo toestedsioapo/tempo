@@ -140,6 +140,8 @@ The oracle may be slow (it scans minutes); generators keep the horizon small (`s
 
 Run on Linux and Windows in CI. Snapshots live in `packages/cli/test/__snapshots__/`; update only intentionally and say why in the PR.
 
+> **Status (M3):** CLI-01 … CLI-18 are implemented (CLI-19 is M4). Unit-level tests sit beside the code in `packages/cli/src/*.test.ts`; spawned-process tests are `packages/cli/test/bin.test.ts`. The snapshot file is `packages/cli/src/__snapshots__/render.test.ts.snap`, not the `test/__snapshots__/` path above (render tests sit next to `render.ts`). The Linux/Windows CI proof follows the push.
+
 | ID | Command / input | Asserts |
 |---|---|---|
 | CLI-01 | `tempo check --json` on EX-01 | exit `0`; stdout JSON equals the SPEC output |

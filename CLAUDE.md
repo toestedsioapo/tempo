@@ -4,7 +4,7 @@ Tempo is a TypeScript library + CLI that decides whether a meeting request fits 
 
 ## Current phase
 
-**IMPLEMENTATION — milestone 2b complete locally (awaiting push gate); next is milestone 3 (CLI).**
+**IMPLEMENTATION — milestone 3 (CLI) complete locally (awaiting push gate); next is milestone 4 (schema, agent skill, examples, README).**
 Milestone plans live in `docs/plans/`. Do not start executing a plan until I say "go".
 
 ## Source of truth
