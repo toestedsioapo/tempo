@@ -8,17 +8,43 @@ import { requestedSpan, timeGate } from "./gates.js";
 import { formatUtc, toIsoSlot } from "./render.js";
 import { inPast, insufficientNotice, noSlotsInHorizon } from "./reasons.js";
 import { searchSlots } from "./search.js";
-import type { NegotiationResult, NegotiationRequest, Reason, ResolvedNegotiationRequest } from "./types.js";
+import type { Span } from "./intervals.js";
+import type {
+  ErrorResult,
+  IsoSlot,
+  NegotiationRequest,
+  NegotiationResult,
+  PartyRules,
+  Reason,
+  ResolvedNegotiationRequest,
+} from "./types.js";
 import { validateZones } from "./zones.js";
 
 // partyIds are unique (schema), so two distinct ids never compare equal.
 const byCodeUnit = (a: string, b: string): number => (a < b ? -1 : 1);
 
+/** Everything the three entry points share: the requested slot, the SPEC §3.5 reasons and the search result. */
+export interface Decision {
+  readonly span: Span;
+  readonly requested: IsoSlot;
+  readonly nowMs: number;
+  readonly noticeMinutes: number;
+  readonly gate: ReturnType<typeof timeGate>;
+  /** Parties sorted by partyId code-unit order. */
+  readonly parties: readonly PartyRules[];
+  readonly failed: boolean;
+  readonly reasons: readonly Reason[];
+  /** Ranked search result as rendered slots, plus the spans they came from. */
+  readonly slots: readonly IsoSlot[];
+  readonly spans: readonly Span[];
+}
+
 /**
- * Shared engine for `evaluate` and `suggest` (SPEC §3.3, A-66). They differ only on `book`:
- * `evaluate` returns `slots: [requested]`, `suggest` the ranked search (requested first, distance 0).
+ * The single decision pipeline (SPEC §4.1 validation order, §3.5 reasons, §4.7 search) behind
+ * `evaluate`, `suggest` and `explain`. `searchOnBook` is true only for `suggest` (A-66): on a
+ * `book`, `evaluate`/`explain` skip the search and `slots` is `[requested]`.
  */
-export function negotiate(request: ResolvedNegotiationRequest, mode: "evaluate" | "suggest"): NegotiationResult {
+export function decide(request: ResolvedNegotiationRequest, searchOnBook: boolean): Decision | ErrorResult {
   const zoneError = validateZones(request);
   if (zoneError) return zoneError;
   const intervalError = findInvalidInterval(request);
@@ -53,20 +79,33 @@ export function negotiate(request: ResolvedNegotiationRequest, mode: "evaluate" 
     reasons.push(...r.reasons);
   }
 
-  if (!failed && mode === "evaluate") return { ok: true, decision: "book", requested, slots: [requested], reasons };
+  const base = { span, requested, nowMs, noticeMinutes: options.minNoticeMinutes, gate, parties, failed };
+  if (!failed && !searchOnBook) return { ...base, reasons, slots: [requested], spans: [span] };
 
-  const slots = searchSlots({
+  const spans = searchSlots({
     requested: span,
     boundMs,
     parties,
     horizonDays: options.searchHorizonDays,
     stepMinutes: options.searchStepMinutes,
     maxSuggestions: options.maxSuggestions,
-  }).map((s) => toIsoSlot(s, zone));
+  });
+  const slots = spans.map((s) => toIsoSlot(s, zone));
+  if (failed && slots.length === 0) reasons.push(noSlotsInHorizon(options.searchHorizonDays));
+  return { ...base, reasons, slots, spans };
+}
 
-  if (!failed) return { ok: true, decision: "book", requested, slots, reasons };
-  if (slots.length === 0) reasons.push(noSlotsInHorizon(options.searchHorizonDays));
-  return { ok: true, decision: "counter_offer", requested, slots, reasons };
+/** `evaluate`/`suggest` result from a decision (SPEC §3.3). */
+export function negotiate(request: ResolvedNegotiationRequest, mode: "evaluate" | "suggest"): NegotiationResult {
+  const d = decide(request, mode === "suggest");
+  if ("error" in d) return d;
+  return {
+    ok: true,
+    decision: d.failed ? "counter_offer" : "book",
+    requested: d.requested,
+    slots: [...d.slots],
+    reasons: [...d.reasons],
+  };
 }
 
 /**
