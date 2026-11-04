@@ -16,12 +16,31 @@ const MIN_MS = 60_000;
 const asReq = (x: unknown) => x as NegotiationRequest;
 const run = <T>(name: string, arb: fc.Arbitrary<T>, check: (i: T) => void) =>
   it(name, () => fc.assert(fc.property(arb, check), { numRuns: propRuns() }), TIMEOUT_MS);
-const okOnly = (r: NegotiationResult) => (r.ok ? r : null);
+/** Inputs from `arb` are valid for the engine: an error result is a failure, never a vacuous pass. */
+const okOnly = (r: NegotiationResult) => {
+  if (!r.ok) throw new Error(`engine returned ${r.error.code} on an input the oracle accepts`);
+  return r;
+};
 const ms = (utc: string): number => DateTime.fromISO(utc, { zone: "utc" }).toMillis();
 const span = (s: { startUtc: string; endUtc: string }) => ({ startMs: ms(s.startUtc), endMs: ms(s.endUtc) });
 
 /** Inputs whose request wall times are valid (no C10 error), so results carry slots. */
 const arb = negotiationInputArb().filter((i) => !("error" in oracleSlots(i)));
+
+/** Oracle view of C9: the lattice start times (UTC ms) whose slot fits every participant and the notice bound. */
+function fittingStarts(i: DifferentialInput, requested: { startMs: number; endMs: number }): Set<number> {
+  const dur = requested.endMs - requested.startMs;
+  const step = (i.options.searchStepMinutes ?? 15) * MIN_MS;
+  const kMax = Math.floor(((i.options.searchHorizonDays ?? 14) * 86_400_000) / step);
+  const bound = ms(i.options.now) + (i.options.minNoticeMinutes ?? 0) * MIN_MS;
+  const lattice: { startMs: number; endMs: number }[] = [];
+  for (let k = -kMax; k <= kMax; k++) {
+    const startMs = requested.startMs + k * step;
+    if (startMs >= bound) lattice.push({ startMs, endMs: startMs + dur });
+  }
+  const covered = oracleCovers(i, lattice);
+  return new Set(lattice.filter((_, k) => covered[k]).map((x) => x.startMs));
+}
 
 describe("INV-01 … INV-05: slots and decisions", () => {
   run("INV-01 book => the requested range is inside every participant's availability", arb, (i) => {
@@ -118,9 +137,14 @@ describe("INV-06 … INV-09: determinism, symmetry, monotonicity, round trip", (
     ({ before, after }) => {
       const b = okOnly(evaluate(asReq(before)));
       const a = okOnly(evaluate(asReq(after)));
-      if (b?.decision === "counter_offer") expect(a?.decision).toBe("counter_offer");
-      const slotsAfter = okOnly(suggest(asReq(after)))?.slots.map(span) ?? [];
-      expect(oracleCovers(before, slotsAfter).every(Boolean)).toBe(true);
+      if (b.decision === "counter_offer") expect(a.decision).toBe("counter_offer");
+      // The fitting lattice only shrinks (compared as sets; greedy picks are not monotone under removal).
+      const req = span(a.requested);
+      const fitBefore = fittingStarts(before, req);
+      const fitAfter = fittingStarts(after, req);
+      for (const start of fitAfter) expect(fitBefore.has(start)).toBe(true);
+      // And the engine's picks come from the shrunken lattice.
+      for (const sl of okOnly(suggest(asReq(after))).slots) expect(fitAfter.has(span(sl).startMs)).toBe(true);
     },
   );
 
@@ -132,9 +156,11 @@ describe("INV-06 … INV-09: determinism, symmetry, monotonicity, round trip", (
         [s.startUtc, s.start],
         [s.endUtc, s.end],
       ] as const) {
-        const formatted = DateTime.fromISO(utc, { zone: i.request.timeZone }).toISO({ suppressMilliseconds: true });
-        expect(DateTime.fromISO(formatted as string).toMillis()).toBe(ms(utc));
-        expect(DateTime.fromISO(local).toMillis()).toBe(ms(utc));
+        // The requester-zone string is the UTC instant formatted in that zone (zero offset renders as Z, A-60).
+        const zoned = DateTime.fromISO(utc, { zone: i.request.timeZone });
+        const formatted = zoned.toFormat("yyyy-MM-dd'T'HH:mm:ssZZ");
+        expect(local === formatted || (zoned.offset === 0 && local === utc)).toBe(true);
+        expect(DateTime.fromISO(local, { setZone: true }).toMillis()).toBe(ms(utc));
       }
     }
   });
@@ -143,11 +169,31 @@ describe("INV-06 … INV-09: determinism, symmetry, monotonicity, round trip", (
 describe("INV-10 never throws", () => {
   const codes = new Set(["INVALID_INPUT", "AMBIGUOUS_ZONE", "INVALID_ZONE", "INVALID_INTERVAL", "DST_NONEXISTENT_LOCAL_TIME", "DST_AMBIGUOUS_LOCAL_TIME"]);
 
-  const mutate = (base: unknown, junk: unknown, path: number[]): unknown => {
-    const clone = JSON.parse(JSON.stringify(base)) as Record<string, unknown>;
-    const keys = ["request", "participants", "options"];
-    const key = keys[(path[0] as number) % keys.length] as string;
-    clone[key] = junk;
+  const HOSTILE: unknown[] = [
+    null, undefined, "", " ", "25:00", "2024-02-30", "IST", "Mars/Olympus", "\u0000", "9".repeat(400),
+    1e308, -1e308, NaN, -0, 0, -1, 1.5, true, [], {}, [[[]]], { a: { b: [1] } }, "24:00", "00:00", "2025-13-01",
+  ];
+
+  /** Every path of `value` (containers and leaves) as key arrays. */
+  const paths = (value: unknown, prefix: (string | number)[] = []): (string | number)[][] => {
+    const out: (string | number)[][] = [prefix];
+    if (Array.isArray(value)) value.forEach((v, k) => out.push(...paths(v, [...prefix, k])));
+    else if (value !== null && typeof value === "object") {
+      for (const [k, v] of Object.entries(value)) out.push(...paths(v, [...prefix, k]));
+    }
+    return out;
+  };
+
+  /** Replace one node of a valid request by hostile junk (reaches deep schema and engine paths). */
+  const mutate = (base: unknown, junk: unknown, pick: number): unknown => {
+    const clone = JSON.parse(JSON.stringify(base)) as Record<string | number, unknown>;
+    const all = paths(clone).filter((p) => p.length > 0);
+    const path = all[pick % all.length] as (string | number)[];
+    let node = clone;
+    for (const key of path.slice(0, -1)) node = node[key] as Record<string | number, unknown>;
+    const last = path[path.length - 1] as string | number;
+    if (junk === undefined) delete node[last];
+    else node[last] = junk;
     return clone;
   };
 
@@ -158,7 +204,9 @@ describe("INV-10 never throws", () => {
         fc.oneof(
           fc.anything(),
           fc.jsonValue(),
-          fc.tuple(fc.constantFrom(...valid), fc.anything(), fc.array(fc.nat(), { minLength: 1, maxLength: 1 })).map(([b, j, p]) => mutate(b, j, p)),
+          fc
+            .tuple(fc.constantFrom(...valid), fc.oneof(fc.constantFrom(...HOSTILE), fc.anything()), fc.nat())
+            .map(([b, j, p]) => mutate(b, j, p)),
           fc.constant(null),
           fc.constant({ request: {}, participants: [], options: {} }),
           fc.string({ minLength: 0, maxLength: 5000 }),
@@ -177,11 +225,31 @@ describe("INV-10 never throws", () => {
     );
   }, TIMEOUT_MS);
 
-  it("deeply nested input returns INVALID_INPUT", () => {
-    let deep: unknown = {};
-    for (let n = 0; n < 5000; n++) deep = { a: deep };
-    const r = evaluate(asReq(deep));
-    expect(!r.ok && r.error.code).toBe("INVALID_INPUT");
+  it("deeply nested objects and arrays return INVALID_INPUT", () => {
+    let deepObject: unknown = {};
+    let deepArray: unknown = [];
+    for (let n = 0; n < 5000; n++) {
+      deepObject = { a: deepObject };
+      deepArray = [deepArray];
+    }
+    for (const deep of [deepObject, deepArray]) {
+      const r = evaluate(asReq(deep));
+      expect(!r.ok && r.error.code).toBe("INVALID_INPUT");
+    }
+  });
+
+  it("leaf mutations reach deeper than the top level", () => {
+    const valid = fc.sample(negotiationInputArb(), { numRuns: 30, seed: 13 });
+    const outcomes = new Set<string>();
+    fc.assert(
+      fc.property(fc.constantFrom(...valid), fc.constantFrom(...HOSTILE), fc.nat(), (b, j, p) => {
+        const r = evaluate(asReq(mutate(b, j, p)));
+        outcomes.add(r.ok ? "ok" : r.error.code);
+      }),
+      { numRuns: 600, seed: 17 },
+    );
+    expect(outcomes.has("ok")).toBe(true);
+    expect([...outcomes].some((c) => c !== "ok" && c !== "INVALID_INPUT")).toBe(true);
   });
 });
 
@@ -245,9 +313,10 @@ describe("INV-11 … INV-14", () => {
           ],
           options: { now: "2020-01-01T00:00:00Z" },
         });
+      expect((evaluate(input(s - MIN_MS, e, "")) as { decision: string }).decision).toBe("counter_offer");
       const whole = evaluate(input(s, e, ""));
       expect(whole.ok && whole.decision).toBe("book");
-      expect(evaluate(input(s, e + MIN_MS, "")).ok && (evaluate(input(s, e + MIN_MS, "")) as { decision: string }).decision).toBe("counter_offer");
+      expect((evaluate(input(s, e + MIN_MS, "")) as { decision: string }).decision).toBe("counter_offer");
       // Ownership: blacking out the START day removes the instance; the end day does not.
       expect((evaluate(input(s, e, date)) as { decision: string }).decision).toBe("counter_offer");
       expect((evaluate(input(s, e, next)) as { decision: string }).decision).toBe("book");

@@ -4,8 +4,11 @@
  */
 export function propRuns(): number {
   const raw = process.env["TEMPO_PROP_RUNS"];
-  const n = raw === undefined ? NaN : Number(raw);
-  return Number.isInteger(n) && n > 0 ? n : 200;
+  if (raw === undefined || raw === "") return 200;
+  const n = Number(raw);
+  // A set-but-invalid value (a typo in nightly.yml) must not silently drop back to 200 runs.
+  if (!Number.isInteger(n) || n <= 0) throw new Error(`TEMPO_PROP_RUNS must be a positive integer, got "${raw}"`);
+  return n;
 }
 
 /** Per-test timeout that scales with the run count (about 1 s per run, plus a minute of headroom). */

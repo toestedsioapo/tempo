@@ -16,10 +16,12 @@ describe("propRuns (A-65)", () => {
     expect(propTimeoutMs()).toBe(5_060_000);
   });
 
-  it("falls back to 200 for junk", () => {
-    for (const bad of ["", "abc", "-5", "0", "1.5"]) {
+  it("an empty value means the default; any other junk throws", () => {
+    process.env["TEMPO_PROP_RUNS"] = "";
+    expect(propRuns()).toBe(200);
+    for (const bad of ["abc", "-5", "0", "1.5", "5,000"]) {
       process.env["TEMPO_PROP_RUNS"] = bad;
-      expect(propRuns()).toBe(200);
+      expect(() => propRuns()).toThrow(/positive integer/);
     }
   });
 });
