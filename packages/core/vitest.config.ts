@@ -2,6 +2,10 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
+    // The purity (ESLint), public-API (TypeScript program) and module-mock tests take a few seconds on
+    // an idle machine and more than the 5 s default on a loaded CI runner (A-71).
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov", "json-summary"],
