@@ -50,7 +50,8 @@ describe("examples/ (CORE-41, M4)", () => {
   });
 
   it("a request without participants does NOT validate (the validator is live)", () => {
-    const { participants: _drop, ...rest } = read("demo.json") as Record<string, unknown>;
+    const rest = structuredClone(read("demo.json")) as Record<string, unknown>;
+    delete rest["participants"];
     expect(validate(rest)).toBe(false);
   });
 
