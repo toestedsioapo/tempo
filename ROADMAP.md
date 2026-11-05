@@ -173,13 +173,13 @@ Six milestones over about six weeks, ending in the **first release, `v0.1.0`** o
 
 **Definition of done**
 
-- [ ] QG-01 … QG-05 green. Local evidence (fresh clone of `main`, Windows, Node 24.11.1, pnpm 12.15.0, 2026-11-06):
+- [ ] QG-01 … QG-05 green (open: the nightly `mutation-score` item below). Local evidence (fresh clone of `main`, Windows, Node 24.11.1, pnpm 12.15.0, 2026-11-06):
   - [x] QG-01: `pnpm test:coverage` exit 0; core 100 % lines, 99.39 % branches, 100 % functions (thresholds 95/95/100).
   - [x] QG-02: combined mutation score 98.95 % on CI (run 42124645347, break 70); survivors in `docs/reviews/m5-mutation.md`. A second run (42129787308) is recorded there for reproducibility.
-  - [ ] QG-03, QG-04: pinned by `tests/repo.test.ts`; stay unticked until `gh run view` shows all four CI jobs green after the push.
+  - [x] QG-03, QG-04: pinned by `tests/repo.test.ts`; CI run 42131512161 on `main` after the push: all four `verify` jobs (ubuntu/windows × Node 24/26) green.
   - [x] QG-05: `packages/core/test/fixtures-lock.test.ts` and `fixtures.lock.json`.
   - [ ] The nightly `mutation-score` job has been green once via `workflow_dispatch` (run 42124645347, on the branch); tick after it also runs green from `main`.
-- [ ] All five planning docs match the shipped behaviour: spot-check tables in `docs/reviews/m5-docs-match.md`; **sign-off line left for me.**
+- [x] All five planning docs match the shipped behaviour: spot-check tables in `docs/reviews/m5-docs-match.md`; signed off by owner, 2026-11-06.
 - [x] No open `Needs approval` rows in `ASSUMPTIONS.md`: `tests/docs.test.ts` (DOC-04).
 
 ## M6 — Release v0.1.0 (Week 6, second half)
