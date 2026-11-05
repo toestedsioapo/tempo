@@ -13,7 +13,7 @@ export default defineConfig({
       // `index.ts` re-export barrel (no logic) and the type-only `types.ts`.
       include: ["src/**/*.ts"],
       exclude: ["src/**/*.test.ts", "src/index.ts", "src/types.ts"],
-      thresholds: { lines: 95, branches: 95 },
+      thresholds: { lines: 95, branches: 95, functions: 100 },
     },
   },
 });

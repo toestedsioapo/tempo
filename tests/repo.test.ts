@@ -135,6 +135,17 @@ describe("repo config", () => {
     expect(cfg).toMatch(/branches:\s*95/);
   });
 
+  it("QG-01: core config also gates functions at 100 (every public function is covered)", () => {
+    expect(readText("packages/core/vitest.config.ts")).toMatch(/functions:\s*100/);
+  });
+
+  it("QG-01: cli config gates lines and branches at 95", () => {
+    const cfg = readText("packages/cli/vitest.config.ts");
+    expect(cfg).toContain("thresholds");
+    expect(cfg).toMatch(/lines:\s*95/);
+    expect(cfg).toMatch(/branches:\s*95/);
+  });
+
   describe("CI workflow", () => {
     const ci = (): string => readText(".github/workflows/ci.yml");
     const runLines = (): string[] =>
@@ -149,6 +160,19 @@ describe("repo config", () => {
       expect(text).toContain("windows-latest");
       expect(text).toMatch(/node:\s*\[\s*24\s*,\s*26\s*\]/);
       expect(text).toContain("--frozen-lockfile");
+    });
+
+    it("QG-03: the matrix is exactly ubuntu-latest and windows-latest x Node 24 and 26", () => {
+      const text = ci();
+      expect(text).toMatch(/os:\s*\[\s*ubuntu-latest\s*,\s*windows-latest\s*\]/);
+      expect(text).toMatch(/node:\s*\[\s*24\s*,\s*26\s*\]/);
+      expect(text.match(/^\s*(os|node):/gm)).toHaveLength(2);
+    });
+
+    it("QG-01: CI runs the coverage gate on every matrix job (no job-level if)", () => {
+      const text = ci();
+      expect(runLines()).toContain("run: pnpm test:coverage");
+      expect(text).not.toMatch(/^\s*if:/m);
     });
 
     it("CI: runs install, typecheck, lint, test, build in order (whole run lines)", () => {
