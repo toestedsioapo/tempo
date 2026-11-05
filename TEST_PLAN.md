@@ -23,7 +23,7 @@ Rules for every test: fixed `now`, fixed IANA zones, no network, no clock. Core 
 
 ## 2. Worked-example tests (`packages/core/test/examples.test.ts`)
 
-Table-driven: one fixture per SPEC example (`fixtures/examples/ex-nn.json` holding `input` and the exact expected output), exported as `@marvinliem/tempo-core/fixtures`. The SPEC output blocks are the expected values, byte for byte (`DOC-02` checks that SPEC.md and the fixtures agree).
+Table-driven: one fixture per SPEC example (`fixtures/examples/ex-nn.json` holding `input` and the exact expected output), exported as `@marvinliem/tempo-core/fixtures/*` (A-89; `fixtures/dst/dst-nn.json` holds the named DST cells, A-92). The SPEC output blocks are the expected values, byte for byte (`DOC-02` checks that SPEC.md and the fixtures agree).
 
 | Test | SPEC example | Entry point | Asserts |
 |---|---|---|---|
@@ -195,10 +195,10 @@ Run on Linux and Windows in CI. Snapshots live in `packages/cli/test/__snapshots
 | ID | Gate |
 |---|---|
 | QG-01 | `packages/core` ≥ 95% line **and** branch coverage; 100% of public functions covered (A-23) |
-| QG-02 | Stryker mutation score ≥ 70% (break threshold) on `packages/core` (A-23) |
+| QG-02 | Stryker mutation score ≥ 70% (break threshold) on `packages/core` (A-23) Run: `pnpm test:mutation` locally for one file only (`--mutate <file>`); the full run is the sharded `mutation` + `mutation-score` jobs in `nightly.yml` (A-90). |
 | QG-03 | CI matrix: Node 24 and 26 × ubuntu-latest and windows-latest; all four must pass |
 | QG-04 | `pnpm typecheck` and `pnpm lint` clean (no `any` escapes in core, purity rules from §1) |
-| QG-05 | Fixture files are append-only: removing or changing an existing fixture needs a changeset marked breaking |
+| QG-05 | Fixture files are append-only: removing or changing an existing fixture needs a changeset marked breaking Proved by `fixtures.lock.json` and `packages/core/test/fixtures-lock.test.ts` (A-91). |
 
 ## 9. Traceability
 
@@ -246,9 +246,10 @@ Run on Linux and Windows in CI. Snapshots live in `packages/cli/test/__snapshots
 | CFG-09 | every fenced example in `SKILL.md` parses, and its documented exit codes match CLI behaviour |
 | CFG-10 | `pnpm check:names` confirms `@marvinliem/tempo-core` and `@marvinliem/tempo` are available (or owned) on npm — the Milestone 1 gate (F20) |
 | CFG-11 | `.changeset/config.json` exists; release workflow publishes with provenance and contains no token |
-| DOC-01 | every `A-nn` referenced in a doc exists in `ASSUMPTIONS.md` |
+| DOC-01 | every `A-nn` referenced in a doc exists in `ASSUMPTIONS.md` (`tests/docs.test.ts`) |
 | DOC-02 | each SPEC output block equals the matching `fixtures/examples/ex-nn.json` expectation |
 | DOC-03 | README demo input and output are reproducible (CLI-19) |
+| DOC-04 | no `ASSUMPTIONS.md` row is `open` or "Needs approval" (`tests/docs.test.ts`) |
 
 ### 9.3 DECISIONS row → test or invariant
 

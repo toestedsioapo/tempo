@@ -1,0 +1,60 @@
+{
+  "id": "DST-02",
+  "entry": "evaluate",
+  "input": {
+    "request": {
+      "date": "2025-11-02",
+      "start": "10:00",
+      "end": "11:00",
+      "timeZone": "UTC"
+    },
+    "participants": [
+      {
+        "partyId": "alice",
+        "timeZone": "UTC",
+        "weeklyRules": {
+          "sunday": [
+            {
+              "start": "00:00",
+              "end": "24:00"
+            }
+          ]
+        }
+      },
+      {
+        "partyId": "bob",
+        "timeZone": "America/New_York",
+        "weeklyRules": {
+          "saturday": [
+            {
+              "start": "22:00",
+              "end": "06:00"
+            }
+          ]
+        }
+      }
+    ],
+    "options": {
+      "now": "2025-10-25T00:00:00Z"
+    }
+  },
+  "expected": {
+    "ok": true,
+    "decision": "book",
+    "requested": {
+      "start": "2025-11-02T10:00:00Z",
+      "end": "2025-11-02T11:00:00Z",
+      "startUtc": "2025-11-02T10:00:00Z",
+      "endUtc": "2025-11-02T11:00:00Z"
+    },
+    "slots": [
+      {
+        "start": "2025-11-02T10:00:00Z",
+        "end": "2025-11-02T11:00:00Z",
+        "startUtc": "2025-11-02T10:00:00Z",
+        "endUtc": "2025-11-02T11:00:00Z"
+      }
+    ],
+    "reasons": []
+  }
+}

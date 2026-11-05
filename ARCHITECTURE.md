@@ -47,7 +47,7 @@ Tempo/
 │   └── cli/                     # @marvinliem/tempo  (binary: tempo)
 │       └── src/
 │           ├── main.ts          # main(argv, io, clock) → exit code
-│           ├── commands/{check,suggest,explain}.ts
+│           ├── commands.ts      # check / suggest / explain, one line each (A-78)
 │           ├── io.ts            # file/stdin, BOM strip, JSON in/out
 │           └── clock.ts         # the only place that reads the system clock
 ├── .github/workflows/{ci.yml, release.yml}
@@ -80,7 +80,7 @@ export function explain (input: NegotiationRequest): ExplainResult
 // none of these functions throws, reads a clock, or touches the environment
 
 // @marvinliem/tempo — for testing only
-export function main(argv: string[], env: { readStdin(): Promise<string>; readFile(p: string): Promise<string>;
+export function main(argv: string[], env: { readStdin(): Promise<Uint8Array>; readFile(p: string): Promise<Uint8Array>; /* bytes, A-74 */
                                             write(s: string): void; writeErr(s: string): void; now(): string }): Promise<number>
 ```
 
