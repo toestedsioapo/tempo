@@ -142,6 +142,8 @@ Run on Linux and Windows in CI. Snapshots live in `packages/cli/test/__snapshots
 
 > **Status (M3):** CLI-01 … CLI-18 are implemented (CLI-19 is M4). Unit-level tests sit beside the code in `packages/cli/src/*.test.ts`; spawned-process tests are `packages/cli/test/bin.test.ts`. The snapshot file is `packages/cli/src/__snapshots__/render.test.ts.snap`, not the `test/__snapshots__/` path above (render tests sit next to `render.ts`). The Linux/Windows CI proof follows the push.
 
+> **Status (M4):** CLI-19, CFG-08 (both halves; the A-36 `it.todo` is gone), CFG-09 and DOC-03 are implemented, and CORE-41 now also validates every input under `examples/`. Where they live: `packages/cli/test/skill.test.ts` (CFG-09), `packages/cli/test/readme-demo.test.ts` (CLI-19, DOC-03), `packages/cli/test/n8n.test.ts` (the n8n workflow and its pinned real-n8n results), `packages/core/test/example-files.test.ts` (CORE-41 over `examples/`), `packages/core/test/schema-package.test.ts` (the schema ships in the tarball), `tests/repo.test.ts` (CFG-08). They sit beside the code they need, not in root `tests/` (A-86).
+
 | ID | Command / input | Asserts |
 |---|---|---|
 | CLI-01 | `tempo check --json` on EX-01 | exit `0`; stdout JSON equals the SPEC output |

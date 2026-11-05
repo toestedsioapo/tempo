@@ -147,14 +147,20 @@ Six milestones over about six weeks, ending in the **first release, `v0.1.0`** o
 
 * `schema/rules.schema.json` generated and published with the package; example input files validate against it (CORE-41).
 * **`SKILL.md` at the repo root**, tool-agnostic (D16): how an agent drives the CLI through pipes, with example invocations and expected exit codes (CFG-08, CFG-09).
-* `examples/` mirroring the n8n flow, including an n8n Code-node snippet, and the files used by the README demo.
+* `examples/` mirroring the n8n flow, including an importable n8n workflow that calls `tempo check --json` (replaces the earlier "n8n Code-node snippet": the Code-node logic is what Tempo replaces), and the files used by the README demo.
 * README final: pitch, why, install, a real `tempo explain` demo that is reproducible on Windows PowerShell and bash (CLI-19, DOC-03).
 
 **Definition of done**
 
-- [ ] CFG-08, CFG-09, CLI-19, DOC-03 pass.
-- [ ] Example inputs validate against the generated JSON Schema.
-- [ ] A person on Windows/PowerShell can run the README demo copy-paste.
+- [x] CFG-08, CFG-09, CLI-19, DOC-03 pass. Proved: `tests/repo.test.ts` (CFG-08 `SKILL.md` exists, `it.todo` removed), `packages/cli/test/skill.test.ts` (CFG-09: every fenced `bash` example in `SKILL.md` parses, names existing files and returns its documented exit code through `main`; a mutated exit code fails 2 tests), `packages/cli/test/readme-demo.test.ts` (CLI-19: the README input block is `examples/demo.json` byte for byte and `explain --json` on it reproduces the README output and `examples/demo.explain.json`; DOC-03: every README command starts with a known program, has no line continuation and names existing files).
+- [x] Example inputs validate against the generated JSON Schema. Proved: `packages/core/test/example-files.test.ts` (ajv 2020 over `examples/demo.json` and `examples/inputs/*.json`; a negative control without `participants` fails validation); the schema also ships in the package (A-82: `npm pack --dry-run` lists `schema/rules.schema.json`, `packages/core/test/schema-package.test.ts`).
+- [x] A person on Windows/PowerShell can run the README demo copy-paste. Proved by hand on a fresh clone (Windows 11, Windows PowerShell 5.1.26100.9711, pnpm 12.15.0, Node 24.11.1): the README's quick-start command, the `tempo explain examples/demo.json --json` form and `Get-Content examples/demo.json -Raw | tempo explain --json` all print `"decision": "counter_offer"` and exit 0, `--exit-code` exits 1, and the three 5.1 variants of the non-ASCII note print `Zoë`. (`tempo` was a function around `node packages/cli/dist/bin.js` because nothing is published.)
+- [x] n8n workflow (`examples/n8n/`) runs in a real n8n. Proved: `node examples/n8n/verify.mjs` on n8n 2.38.7 in an isolated user folder: EX-01 reaches Book slot, EX-17 Offer alternatives, EX-23 Report input error (`AMBIGUOUS_ZONE`, 3 candidates); results pinned in `examples/n8n/verified.json` (A-83, A-84, A-87).
+- [x] Independent review of the five CLI test files the M3 review skipped: `docs/reviews/m3-cli-tests.md` (7 weak and 17 missing items now covered, 6 hand mutations all caught, 1 open production finding, A-85).
+- [x] Fresh-clone run (local clone of `main` at 38c4288, Windows, Node 24.11.1, pnpm 12.15.0): `pnpm install --frozen-lockfile`, `pnpm typecheck`, `pnpm lint`, `pnpm test` (repo 27 passed, core 612 passed, cli 269 passed + 1 todo), `pnpm test:coverage` (CLI 98.71 % statements, 97.67 % branches, 98.48 % lines), `pnpm build` and `pnpm gen:schema` all exit 0, `git status --short` is empty afterwards, and `npm pack --dry-run` lists `schema/rules.schema.json` in core and `dist/bin.js` in the CLI.
+- [ ] CI green on the Linux and Windows jobs (ubuntu/windows x Node 24/26) after the push. Left unticked until `gh run view` shows all four jobs green.
+
+**Corrections found in M4.** (1) The M3 by-hand note above says `Get-Content -Encoding UTF8 f.json | tempo` works in PowerShell 5.1. Measured again in M4: with the default `$OutputEncoding` (US-ASCII) it prints `Zo?`, and without `-Encoding` it prints `Zo??`; it works only when `$OutputEncoding = [System.Text.UTF8Encoding]::new($false)` is also set (or with a file path or `cmd /c "... < f.json"`). The README and `SKILL.md` carry the corrected note. (2) `--help` says an ambiguous-zone error "lists the candidate zones", but the human-readable line does not (only `--json` does): open as A-85.
 
 ## M5 — Hardening and documentation review (Week 6, first half)
 
