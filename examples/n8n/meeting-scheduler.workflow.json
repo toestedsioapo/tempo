@@ -19,7 +19,7 @@
             {
               "id": "a1",
               "name": "tempoRequestPath",
-              "value": "C:/Program Files/Git/home/node/.n8n-files/tempo-request.json",
+              "value": "/home/node/.n8n-files/tempo-request.json",
               "type": "string"
             },
             {

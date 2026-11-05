@@ -2,7 +2,7 @@
 
 **Scope:** `packages/cli/src/{main,args,io,now,render}.test.ts` (and the render snapshot) against `docs/plans/M3.md` Tasks 1-5, its Review Focus 1-5, SPEC section 5 and TEST_PLAN CLI-01 ... CLI-17.
 **Method:** a fresh read-only reviewer (no M3 history) produced the verdict tables; the mutation spot-check was run afterwards by the implementer. Verdicts: *pinned* (fails if the behaviour regresses), *weak* (passes with the behaviour broken), *missing* (no test).
-**Result:** every M3 plan item that is a CLI-nn row is pinned. 7 items were weak, 17 behaviours had no test, 1 finding is a production defect (F1). All weak/missing items below now have a test; F1 is open for the owner.
+**Result:** every M3 plan item that is a CLI-nn row is pinned. 7 items were weak, 16 behaviours had no test, 1 finding is a production defect (F1). 4 of the 7 weak items are fixed and 3 are deliberately left (noted in the table); all 16 missing behaviours now have a test; F1 is open for the owner.
 
 ## Weak items (before this task)
 
