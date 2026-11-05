@@ -123,6 +123,7 @@ describe("CLI-06 .. CLI-09: input errors", () => {
 
   it("CLI-07: {} and a request without participants are core's INVALID_INPUT", async () => {
     const empty = await runRaw(["check", "--json", PATH], { files: { [PATH]: "{}" } });
+    expect(empty.code).toBe(2);
     expect(json(empty.out).error.code).toBe("INVALID_INPUT");
     const fx = example(1);
     const input = structuredClone(fx.input);
@@ -372,4 +373,92 @@ describe("CLI-17: unexpected failures", () => {
     });
     await expect(main(["check", "--json", PATH], env)).resolves.toBe(4);
   });
+});
+
+describe("review additions (M4 Task 1)", () => {
+  it("two files fail because of the argument count, not because the files are missing", async () => {
+    const files = { "a.json": "{}", "b.json": "{}", x: "{}" };
+    const two = await runRaw(["check", "--json", "a.json", "b.json"], { files });
+    const dash = await runRaw(["check", "--json", "-", "x"], { files, stdin: "{}" });
+    for (const r of [two, dash]) {
+      expect(r.code).toBe(2);
+      expect(json(r.out).error.message).toMatch(/Too many arguments/);
+    }
+  });
+
+  it("--json alone, and --now before another flag, are JSON usage errors", async () => {
+    const bare = await runRaw(["--json"]);
+    expect(bare.code).toBe(2);
+    expect(json(bare.out).error.message).toContain("Missing command");
+    expect(bare.err).toBe("");
+    const dangling = await runRaw(["check", "--now", "--json"]);
+    expect(dangling.code).toBe(2);
+    expect(json(dangling.out).error.message).toContain("--now");
+  });
+
+  it("a usage error with a multi-line message is one line on stderr", async () => {
+    const r = await runRaw(["check", "--now", "--bogus"]);
+    expect(r.code).toBe(2);
+    expect(r.out).toBe("");
+    expect(r.err.trimEnd().split("\n")).toHaveLength(1);
+  });
+
+  it("a read error carries its reason (non-Error and null rejections)", async () => {
+    const thrown = fakeEnv({
+      readFile: async () => {
+        throw "plain string";
+      },
+    });
+    expect(await main(["check", "--json", "f.json"], thrown)).toBe(2);
+    expect(json(thrown.out.join("")).error.message).toContain("plain string");
+    const nul = fakeEnv({
+      readFile: async () => {
+        throw null;
+      },
+    });
+    expect(await main(["check", "--json", "f.json"], nul)).toBe(2);
+    expect(json(nul.out.join("")).error.code).toBe("INVALID_INPUT");
+  });
+
+  it("--now with no options object in the file overrides the clock", async () => {
+    const input = structuredClone(example(1).input) as Record<string, unknown>;
+    delete input["options"];
+    const r = await runRaw(["check", "--json", "--now", "2025-01-03T12:00:00Z", PATH], {
+      files: { [PATH]: JSON.stringify(input) },
+    });
+    const expected = evaluate({ ...(input as unknown as NegotiationRequest), options: { now: "2025-01-03T12:00:00Z" } });
+    expect(r.code).toBe(0);
+    expect(json(r.out)).toEqual(JSON.parse(JSON.stringify(expected)));
+  });
+
+  it("an empty file, and empty stdin with --now, are INVALID_INPUT (exit 2)", async () => {
+    const file = await runRaw(["check", "--json", PATH], { files: { [PATH]: "" } });
+    expect(file.code).toBe(2);
+    expect(json(file.out).error.message).toContain("Input is empty.");
+    const stdin = await runRaw(["check", "--json", "--now", "2025-01-03T12:00:00Z"], { stdin: "" });
+    expect(stdin.code).toBe(2);
+    expect(json(stdin.out).error.message).toContain("Input is empty.");
+  });
+
+  it("--exit-code leaves suggest and explain output byte-identical, and a book is exit 0", async () => {
+    for (const cmd of ["suggest", "explain"] as const) {
+      const plain = await run([cmd, "--json"], example(17));
+      const flagged = await run([cmd, "--json", "--exit-code"], example(17));
+      expect(flagged.out).toBe(plain.out);
+      expect([plain.code, flagged.code]).toEqual([0, 1]);
+    }
+    expect((await run(["suggest", "--json", "--exit-code"], example(1))).code).toBe(0);
+  });
+
+  it("human-mode ambiguous zone: exit 3, nothing on stdout, one stderr line", async () => {
+    const r = await run(["check"], example(23));
+    expect(r.code).toBe(3);
+    expect(r.out).toBe("");
+    expect(r.err.trimEnd().split("\n")).toHaveLength(1);
+    expect(r.err).toContain("AMBIGUOUS_ZONE");
+  });
+
+  // Finding F1 of docs/reviews/m3-cli-tests.md: --help says the error lists the candidate zones, but the
+  // human line prints only the core message. Tracked in A-85; the fix needs the owner's decision.
+  it.todo("human-mode ambiguous zone lists the candidate zones (A-85)");
 });

@@ -3,7 +3,7 @@ import type { NegotiationRequest } from "@marvinliem/tempo-core";
 import type { Command } from "./args.js";
 import { commands } from "./commands.js";
 import { main } from "./main.js";
-import { renderHuman, type HumanResult } from "./render.js";
+import { renderErrorLine, renderHuman, renderJson, type HumanResult } from "./render.js";
 import { fakeEnv } from "../test/env.js";
 import { example } from "../test/fixtures.js";
 
@@ -104,5 +104,27 @@ describe("main without --json", () => {
     expect(await main(["check", "f.json"], env)).toBe(2);
     expect(env.out).toEqual([]);
     expect(env.err.join("")).toMatch(/^tempo: INVALID_INPUT: /);
+  });
+});
+
+describe("render: review additions (M4 Task 1)", () => {
+  it("renderJson is 2-space indented with exactly one trailing newline", () => {
+    expect(renderJson({ a: [1] })).toBe('{\n  "a": [\n    1\n  ]\n}\n');
+  });
+  it("renderErrorLine collapses newlines and indentation into single spaces", () => {
+    const line = renderErrorLine({ code: "INVALID_INPUT", message: "first\nsecond\r\n   third" });
+    expect(line).toBe("tempo: INVALID_INPUT: first second third");
+  });
+  it("explain shows a gate other than OK as it is", () => {
+    const text = renderHuman("explain", resultFor("explain", 20));
+    expect(text).toMatch(/Time gate: (?!OK\b)\S+/);
+  });
+  it("suggest with no slots says so", () => {
+    const text = renderHuman("suggest", resultFor("suggest", 2));
+    expect(text).toContain("No alternative slot found.");
+  });
+  it("a failing check names the rule that matched, or '-' when none did", () => {
+    const text = renderHuman("explain", resultFor("explain", 17));
+    expect(text).toMatch(/: FAIL {2}\S+ {2}(-|\w+ \d\d:\d\d-\d\d:\d\d \(\d{4}-\d\d-\d\d\))/);
   });
 });
