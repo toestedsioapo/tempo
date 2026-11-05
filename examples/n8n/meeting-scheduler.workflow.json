@@ -1,0 +1,344 @@
+{
+  "name": "Tempo Meeting Scheduler",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "n1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "tempoRequestPath",
+              "value": "C:/Program Files/Git/home/node/.n8n-files/tempo-request.json",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "tempoCommand",
+              "value": "tempo",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "n2",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1",
+              "name": "requestJson",
+              "value": "{\n  \"request\": { \"date\": \"2026-07-14\", \"start\": \"10:00\", \"end\": \"11:00\", \"timeZone\": \"Asia/Manila\" },\n  \"participants\": [\n    {\n      \"partyId\": \"alice\",\n      \"timeZone\": \"America/New_York\",\n      \"weeklyRules\": {\n        \"monday\": [{ \"start\": \"09:00\", \"end\": \"17:00\" }],\n        \"tuesday\": [{ \"start\": \"09:00\", \"end\": \"17:00\" }],\n        \"wednesday\": [{ \"start\": \"09:00\", \"end\": \"17:00\" }],\n        \"thursday\": [{ \"start\": \"09:00\", \"end\": \"17:00\" }],\n        \"friday\": [{ \"start\": \"09:00\", \"end\": \"17:00\" }]\n      },\n      \"blackouts\": []\n    },\n    {\n      \"partyId\": \"bob\",\n      \"timeZone\": \"Asia/Manila\",\n      \"weeklyRules\": {\n        \"monday\": [{ \"start\": \"20:00\", \"end\": \"06:00\" }],\n        \"tuesday\": [{ \"start\": \"20:00\", \"end\": \"06:00\" }],\n        \"wednesday\": [{ \"start\": \"20:00\", \"end\": \"06:00\" }],\n        \"thursday\": [{ \"start\": \"20:00\", \"end\": \"06:00\" }],\n        \"friday\": [{ \"start\": \"20:00\", \"end\": \"06:00\" }]\n      },\n      \"blackouts\": []\n    }\n  ],\n  \"options\": { \"now\": \"2026-07-13T00:00:00Z\" }\n}\n",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "n3",
+      "name": "Build request",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "requestJson",
+        "binaryPropertyName": "data",
+        "options": {}
+      },
+      "id": "n4",
+      "name": "Request to file",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ $('Settings').item.json.tempoRequestPath }}",
+        "dataPropertyName": "data",
+        "options": {}
+      },
+      "id": "n5",
+      "name": "Write request file",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ $('Settings').item.json.tempoCommand }} check \"{{ $('Settings').item.json.tempoRequestPath }}\" --json || exit 0"
+      },
+      "id": "n6",
+      "name": "Tempo check",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c1",
+              "name": "result",
+              "value": "={{ $json.stdout ? JSON.parse($json.stdout) : { ok: false, error: { code: 'NO_OUTPUT', message: $json.stderr || 'tempo printed nothing' } } }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "n7",
+      "name": "Parse result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1320,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "r1",
+                    "leftValue": "={{ $json.result.decision }}",
+                    "rightValue": "book",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "book"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "r2",
+                    "leftValue": "={{ $json.result.decision }}",
+                    "rightValue": "counter_offer",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "counter_offer"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "error"
+        }
+      },
+      "id": "n8",
+      "name": "Decision",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1540,
+        200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "n9",
+      "name": "Book slot",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        100
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "n10",
+      "name": "Offer alternatives",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        280
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "n11",
+      "name": "Report input error",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        460
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Build request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build request": {
+      "main": [
+        [
+          {
+            "node": "Request to file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Request to file": {
+      "main": [
+        [
+          {
+            "node": "Write request file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write request file": {
+      "main": [
+        [
+          {
+            "node": "Tempo check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tempo check": {
+      "main": [
+        [
+          {
+            "node": "Parse result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse result": {
+      "main": [
+        [
+          {
+            "node": "Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision": {
+      "main": [
+        [
+          {
+            "node": "Book slot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Offer alternatives",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Report input error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
