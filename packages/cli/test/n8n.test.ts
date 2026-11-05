@@ -74,10 +74,12 @@ describe("examples/n8n workflow (M4 Task 5)", () => {
 
   it("only the Settings node holds absolute paths, and nothing holds credentials", () => {
     for (const n of wf.nodes.filter((x) => x.name !== "Settings")) {
-      expect(JSON.stringify(n.parameters), n.name).not.toMatch(/"(\/|[A-Za-z]:[\\/])(home|Users|tmp)/);
+      expect(JSON.stringify(n.parameters), n.name).not.toMatch(/(\/home\/|\/Users\/|\/tmp\/|[A-Za-z]:(\\\\|\/))/);
       expect(n.credentials, n.name).toBeUndefined();
     }
     expect(assignments("Settings").map((a) => a.name)).toEqual(["tempoRequestPath", "tempoCommand"]);
+    // The shipped default is a plain absolute POSIX path (a Git Bash path-conversion bug once put "C:/Program Files/Git" in front).
+    expect(assignments("Settings")[0]!.value).toBe("/home/node/.n8n-files/tempo-request.json");
   });
 
   it("the default request is examples/demo.json", () => {

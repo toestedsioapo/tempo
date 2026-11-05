@@ -2,7 +2,7 @@
 
 Cross-time-zone meeting negotiation: a deterministic TypeScript **library + CLI** that decides whether a meeting request fits everyone’s working hours (overnight shifts, DST, blackout dates) and, if it doesn’t, returns ranked counter-offers with reasons.
 
-> **Status: implemented, not yet published.** The engine (`check`, `suggest`, `explain`), the CLI, the JSON Schema, an agent skill and examples are in this repository and tested on Linux and Windows. Nothing is on npm yet; the first release will be `v0.1.0`. Until then, run it from a clone (next section). See [ROADMAP.md](./ROADMAP.md).
+> **Status: implemented, not yet published.** The engine (`check`, `suggest`, `explain`), the CLI, the JSON Schema, an agent skill and examples are in this repository and tested on Windows (the Linux and Windows CI result follows the push). Nothing is on npm yet; the first release will be `v0.1.0`. Until then, run it from a clone (next section). See [ROADMAP.md](./ROADMAP.md).
 
 ## The pitch
 
@@ -228,7 +228,7 @@ Input is a JSON file or stdin. Flags: `--json` (machine output), `--exit-code`, 
 
 ## Contributing
 
-Spec-first, test-first. No production code without a failing test, and no implementation before the planning docs are approved.
+Spec-first, test-first. No production code without a failing test, and one milestone task per branch. Plans live in `docs/plans/`.
 
 ## License
 

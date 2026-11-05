@@ -85,8 +85,9 @@ describe("DOC-03: README commands are copy-pasteable", () => {
   });
 
   it("carries the PowerShell 5.1 piping warning with the working alternatives", () => {
-    expect(readme).toContain("Get-Content -Encoding UTF8");
-    expect(readme).toContain("$OutputEncoding");
+    const piped = commands.filter((c) => /Get-Content .*Encoding UTF8.*\|/.test(c));
+    expect(piped.length).toBeGreaterThan(0);
+    for (const c of piped) expect(c, c).toContain("$OutputEncoding");
     expect(readme).toMatch(/PowerShell 5\.1/);
   });
 
