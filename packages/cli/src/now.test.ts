@@ -63,3 +63,20 @@ describe("withNow (--now > options.now > clock)", () => {
     expect(input).toEqual(before);
   });
 });
+
+describe("withNow: review additions (M4 Task 1)", () => {
+  it("the flag creates options when the input has none, without reading the clock", () => {
+    const c = clock();
+    expect(withNow({}, FLAG, c)).toEqual({ options: { now: FLAG } });
+    expect(c).not.toHaveBeenCalled();
+  });
+
+  it("the clock branch does not mutate an existing options object", () => {
+    const options = { maxSuggestions: 2 };
+    const input = { options };
+    const out = withNow(input, undefined, clock()) as { options: Record<string, unknown> };
+    expect(out.options).toEqual({ maxSuggestions: 2, now: CLOCK });
+    expect(options).toEqual({ maxSuggestions: 2 });
+    expect(input.options).toBe(options);
+  });
+});

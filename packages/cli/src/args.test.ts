@@ -93,3 +93,39 @@ describe("helpText", () => {
     expect(helpText("explain")).toMatch(/^\s*4\s/m);
   });
 });
+
+describe("parseCli: review additions (M4 Task 1)", () => {
+  it("--help wins over --version", () => {
+    expect(parseCli(["--help", "--version"])).toEqual({ kind: "help" });
+  });
+  it("help wins over other usage errors", () => {
+    expect(parseCli(["check", "a", "b", "--help"])).toEqual({ kind: "help", command: "check" });
+    expect(parseCli(["frobnicate", "--help"])).toEqual({ kind: "help" });
+  });
+  it("-h with --help is a duplicate flag", () => {
+    const r = parseCli(["-h", "--help"]);
+    expect(r.kind).toBe("usage-error");
+    expect(r.kind === "usage-error" ? r.message : "").toContain("--help");
+  });
+  it("--now followed by another flag is a usage error naming --now, and keeps json true", () => {
+    const r = parseCli(["check", "--now", "--json"]);
+    expect(r.kind).toBe("usage-error");
+    if (r.kind === "usage-error") {
+      expect(r.message).toContain("--now");
+      expect(r.json).toBe(true);
+    }
+  });
+  it("--now with an empty value parses here (core rejects the format later)", () => {
+    expect(parseCli(["check", "--now", ""])).toMatchObject({ kind: "run", now: "" });
+  });
+  it("--json alone is 'Missing command' and still asks for JSON", () => {
+    expect(parseCli(["--json"])).toMatchObject({
+      kind: "usage-error",
+      json: true,
+      message: expect.stringContaining("Missing command"),
+    });
+  });
+  it("an unknown option message is one sentence (parseArgs' `--` hint is dropped)", () => {
+    expect(parseCli(["check", "--bogus"])).toMatchObject({ message: "Unknown option '--bogus'." });
+  });
+});

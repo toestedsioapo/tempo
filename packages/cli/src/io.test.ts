@@ -86,3 +86,33 @@ describe("cliError", () => {
     });
   });
 });
+
+describe("decodeInput: review additions (M4 Task 1)", () => {
+  it("strips every leading UTF-8 BOM, not only the first", () => {
+    const r = decodeInput(concat(bytes(0xef, 0xbb, 0xbf, 0xef, 0xbb, 0xbf), enc("{}")));
+    expect(r).toEqual({ ok: true, text: "{}" });
+  });
+  it("a UTF-16LE BOM with nothing after it, and a BOM-only UTF-8 file, are empty", () => {
+    expect(decodeInput(bytes(0xff, 0xfe))).toEqual({ ok: false, message: "Input is empty." });
+    expect(decodeInput(bytes(0xef, 0xbb, 0xbf))).toEqual({ ok: false, message: "Input is empty." });
+  });
+  it("a lone 0xFF byte is invalid text", () => {
+    const r = decodeInput(bytes(0xff));
+    expect(r.ok).toBe(false);
+    expect(r.ok ? "" : r.message).toContain("UTF-8");
+  });
+  it("BOM-less UTF-16 is rejected with a message that names the cause", () => {
+    const r = decodeInput(bytes(0x7b, 0, 0x7d, 0));
+    expect(r.ok ? "" : r.message).toMatch(/NUL .*UTF-16 without a BOM/);
+  });
+  it("parseJsonText reports the parser's own reason after the prefix", () => {
+    const r = parseJsonText("{} x");
+    let reason = "";
+    try {
+      JSON.parse("{} x");
+    } catch (e) {
+      reason = (e as Error).message;
+    }
+    expect(r).toEqual({ ok: false, message: `Invalid JSON: ${reason}` });
+  });
+});
