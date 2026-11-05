@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -85,7 +85,9 @@ describe("repo config", () => {
   it("dst.ts exists in core", () => {
     expect(walk("packages/core/src").some((f) => f.endsWith("/dst.ts"))).toBe(true);
   });
-  it.todo("SKILL.md exists at the repo root (M4)");
+  it("SKILL.md exists at the repo root (D16)", () => {
+    expect(existsSync(resolve(root, "SKILL.md"))).toBe(true);
+  });
 
   it("licence: LICENSE is MIT with Marvin Liemor as holder", () => {
     const text = readText("LICENSE");

@@ -17,3 +17,17 @@ Every JSON input here is validated against the generated `schema/rules.schema.js
 
 `demo.explain.json` is regenerated with `tempo explain examples/demo.json --json > examples/demo.explain.json`
 and committed only after reading it.
+
+## Windows PowerShell 5.1 and `non-ascii-party.json`
+
+Measured on Windows PowerShell 5.1.26100 (default `$OutputEncoding` is US-ASCII), the `partyId` `Zoë` arrives as:
+
+| Command | Result |
+|---|---|
+| `tempo explain f.json --json` | `Zoë` |
+| `cmd /c "tempo explain --json < f.json"` | `Zoë` |
+| `Get-Content f.json | tempo explain --json` | `Zo??` (damaged by PowerShell) |
+| `Get-Content -Encoding UTF8 f.json | tempo explain --json` | `Zo?` (damaged by PowerShell) |
+| `$OutputEncoding = [System.Text.UTF8Encoding]::new($false); Get-Content -Encoding UTF8 f.json | tempo explain --json` | `Zoë` |
+
+This is a PowerShell limit, not a Tempo bug. Prefer the file path.
