@@ -21,3 +21,4 @@ playwright-report/
 .next/
 .stryker-tmp/
 reports/
+packages/core/schema/
