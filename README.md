@@ -2,7 +2,7 @@
 
 Cross-time-zone meeting negotiation: a deterministic TypeScript **library + CLI** that decides whether a meeting request fits everyone’s working hours (overnight shifts, DST, blackout dates) and, if it doesn’t, returns ranked counter-offers with reasons.
 
-> **Status: planning approved; implementation starting (milestone 1).** The docs are written; the engine is not. Nothing below is published yet. The first release will be `v0.1.0`. See [ROADMAP.md](./ROADMAP.md).
+> **Status: implemented, not yet published.** The engine (`check`, `suggest`, `explain`), the CLI, the JSON Schema, an agent skill and examples are in this repository and tested on Linux and Windows. Nothing is on npm yet; the first release will be `v0.1.0`. Until then, run it from a clone (next section). See [ROADMAP.md](./ROADMAP.md).
 
 ## The pitch
 
@@ -33,13 +33,25 @@ pnpm add @marvinliem/tempo-core
 
 Requires Node `>=24`. From source (this repo is a pnpm 12 workspace): `pnpm install`, `pnpm build`.
 
+## Quick start from a clone
+
+Requires Node `>=24` and pnpm 12. These commands work as written in Windows PowerShell and in bash:
+
+```powershell
+pnpm install
+pnpm build
+node packages/cli/dist/bin.js explain examples/demo.json --json
+```
+
+The last command prints the result shown in the demo below. In the commands that follow, `tempo` stands for `node packages/cli/dist/bin.js` until the package is published.
+
 ## Demo: `tempo explain`
 
 Alice works in New York, 09:00–17:00 Monday to Friday. Bob works nights in Manila, 20:00–06:00 Monday to Friday. The requester is in Manila and asks for **Tuesday 2026-07-14, 10:00–11:00 Manila time**.
 
 That instant is `2026-07-14T02:00Z`: Monday 22:00 in New York (EDT, −04:00), and outside Bob’s shift (his Monday-owned shift ended at 06:00 Tuesday Manila time). Neither can make it, so Tempo offers the nearest times that work for both.
 
-Save this as `demo.json`:
+The input is [`examples/demo.json`](./examples/demo.json):
 
 ```json
 {
@@ -79,15 +91,15 @@ Then run it from a file or from stdin.
 **bash**
 
 ```bash
-tempo explain demo.json --json
-tempo explain --json < demo.json
+tempo explain examples/demo.json --json
+tempo explain --json < examples/demo.json
 ```
 
-**Windows PowerShell** (also fine on 5.1: if you create the file with `Set-Content -Encoding utf8`, which writes a BOM, the CLI strips it)
+**Windows PowerShell** (this input is plain ASCII, so piping is safe; see the 5.1 note below for non-ASCII)
 
 ```powershell
-tempo explain demo.json --json
-Get-Content demo.json -Raw | tempo explain --json
+tempo explain examples/demo.json --json
+Get-Content examples/demo.json -Raw | tempo explain --json
 ```
 
 **Output** (`options.now` is in the input file, so the result is reproducible; the exit code is `0`, or `1` with `--exit-code`, because the decision is `counter_offer`):
@@ -149,6 +161,24 @@ How to read it:
 - Suggestions never overlap one another: after ranking, Tempo skips any candidate that overlaps one it already picked (here the 19:45Z and 19:30Z starts were skipped, and 19:00Z and 18:00Z were taken instead). Slots that merely touch are fine.
 
 The same input through `tempo check --json` returns the compact form (`decision`, `requested`, `slots`, `reasons`).
+
+### Piping on Windows PowerShell 5.1
+
+A file path is byte-exact everywhere, so prefer it. Windows PowerShell 5.1 re-encodes text it pipes to a program using `$OutputEncoding`, which is US-ASCII by default. A non-ASCII name such as `Zoë` is therefore damaged before Tempo sees it: `Get-Content f.json | tempo explain --json` gives `Zo??`, and even `Get-Content -Encoding UTF8 f.json | tempo explain --json` gives `Zo?`. This is a PowerShell limit, not a Tempo bug (measured on 5.1.26100; PowerShell 7 was not tested). Any of these works:
+
+```powershell
+tempo explain f.json --json
+cmd /c "tempo explain --json < f.json"
+$OutputEncoding = [System.Text.UTF8Encoding]::new($false); Get-Content -Encoding UTF8 f.json | tempo explain --json
+```
+
+Tempo also strips a leading UTF-8 byte-order mark and reads UTF-16 files that have one (what `>` and `Out-File` write in 5.1).
+
+## Examples and agents
+
+- [`examples/`](./examples/): the demo, one input per feature (overnight shift, DST, blackout, ambiguous zone, non-ASCII name), each validated against the generated [`schema/rules.schema.json`](./schema/rules.schema.json).
+- [`examples/n8n/`](./examples/n8n/): an importable n8n workflow that calls `tempo check --json` from an Execute Command node and branches on the decision. It replaces the Code-node logic of the original Meeting Scheduler.
+- [`SKILL.md`](./SKILL.md): a tool-agnostic skill that tells an agent how to drive the CLI, with example invocations and their exit codes.
 
 ## Library
 
