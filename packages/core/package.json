@@ -9,11 +9,13 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./rules.schema.json": "./schema/rules.schema.json"
+    "./rules.schema.json": "./schema/rules.schema.json",
+    "./fixtures/*": "./fixtures/*"
   },
   "files": [
     "dist",
-    "schema"
+    "schema",
+    "fixtures"
   ],
   "publishConfig": {
     "access": "public",
@@ -23,12 +25,13 @@
     "node": ">=24"
   },
   "scripts": {
-    "build": "rimraf dist && tsc -p tsconfig.build.json && tsx scripts/copy-schema.ts",
+    "build": "rimraf dist && tsc -p tsconfig.build.json && tsx scripts/copy-schema.ts && tsx scripts/copy-fixtures.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.reporter=lcov --coverage.reporter=json-summary",
     "gen:schema": "tsx scripts/gen-schema.ts",
-    "prepack": "tsx scripts/copy-schema.ts"
+    "prepack": "tsx scripts/copy-schema.ts && tsx scripts/copy-fixtures.ts",
+    "lock:fixtures": "tsx scripts/lock-fixtures.ts"
   },
   "dependencies": {
     "luxon": "^3.7.2",

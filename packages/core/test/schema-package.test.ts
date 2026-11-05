@@ -36,11 +36,11 @@ describe("rules.schema.json ships in @marvinliem/tempo-core (A-82)", () => {
     expect(pkg.scripts.prepack).toContain("scripts/copy-schema.ts");
   });
 
-  it("npm pack lists the schema and no sources, tests or fixtures", () => {
+  it("npm pack lists the schema and no sources or tests", () => {
     const out = execSync("npm pack --dry-run --json --ignore-scripts", { cwd: coreDir, encoding: "utf8" });
     const files = (JSON.parse(out) as { files: { path: string }[] }[])[0]!.files.map((f) => f.path);
     expect(files).toContain("schema/rules.schema.json");
-    expect(files.filter((f) => /^(src|test|fixtures|scripts)\//.test(f))).toEqual([]);
+    expect(files.filter((f) => /^(src|test|scripts)\//.test(f))).toEqual([]);
   });
 
   it("the packaged schema is JSON Schema 2020-12", () => {
