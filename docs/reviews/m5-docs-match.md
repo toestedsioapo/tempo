@@ -16,3 +16,12 @@ Cases: request in a **gap**, request in an **overlap**, availability **rule boun
 
 **Verdict.** No cell is *empty* in the sense of having no coverage at all (the property run draws dates within ±2 days of every transition in all five zones), but the cells marked `?` have no named example. No `fixtures/dst/dst-nn.json` was added in M5: a new fixture needs its expected output derived by hand against the oracle (ORC-02), and I did not want to commit unverified expected values.
 This is recorded as owner decision **A-92** (see `ASSUMPTIONS.md`): add `dst-nn` fixtures for the `?` cells later (append-only, so adding them never breaks the lock), or accept the property coverage. The `gh run list --workflow nightly` check and a local 5,000-run pass were not done here (the owner's laptop cannot afford the run; the nightly job runs 5,000 per property on CI).
+
+## Secret scan (Task 5)
+
+Date 2026-11-06, 153 commits on all refs.
+
+- Tracked files: `tests/secrets.test.ts` scans every file from `git ls-files` (binary extensions skipped) and passes; `.npmrc` is exactly `engine-strict=true` and `autoload-links=false`.
+- History: `git log --all --oneline -G'(npm_[A-Za-z0-9]{36}|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{22,}|_authToken=[^ |]+|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----)'` returned one commit, `f9f96f9` (the M5 plan). The match is the prose "`_authToken=`" with no value after it: a false positive, no token. (The plan's own looser pattern `github_pat_` and `_authToken=` would match more prose; the stricter pattern above needs a value.)
+- Names: `git log --all --name-only` for `.env*`, `credentials*`, `token*`, `*.pem` found no file ever committed.
+- Result: no secret in the tree or history; no rotation needed.
