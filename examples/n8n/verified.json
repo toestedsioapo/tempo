@@ -1,0 +1,35 @@
+{
+  "note": "Produced by `node examples/n8n/verify.mjs` against the global n8n CLI in an isolated N8N_USER_FOLDER with NODES_EXCLUDE=[] and N8N_RESTRICT_FILE_ACCESS_TO pointing at a scratch folder. The committed workflow is patched per case (request path, command, request); its structure is unchanged.",
+  "verifiedOn": "2026-11-05",
+  "os": "Windows 11, Node 24.11.1",
+  "n8nVersion": "2.38.7",
+  "results": [
+    {
+      "case": "EX-01",
+      "status": "success",
+      "branch": "Book slot",
+      "expectedBranch": "Book slot",
+      "decision": "book",
+      "errorCode": null,
+      "candidateZones": null
+    },
+    {
+      "case": "EX-17",
+      "status": "success",
+      "branch": "Offer alternatives",
+      "expectedBranch": "Offer alternatives",
+      "decision": "counter_offer",
+      "errorCode": null,
+      "candidateZones": null
+    },
+    {
+      "case": "EX-23",
+      "status": "success",
+      "branch": "Report input error",
+      "expectedBranch": "Report input error",
+      "decision": null,
+      "errorCode": "AMBIGUOUS_ZONE",
+      "candidateZones": 3
+    }
+  ]
+}
