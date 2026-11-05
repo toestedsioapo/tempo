@@ -44,4 +44,4 @@ Three real gaps were closed with tests written against the mutant (each fails on
 
 The plan asks for two full runs with matching survivor sets. A second run of the same workflow is started after these tests land; its result and survivor set are recorded below.
 
-- Run 2: _recorded at M5 close-out (see the end of this file)._
+- Run 2: `workflow_dispatch` run 42129787308 (same branch, includes the three new tests). **Result not read yet when M5 was closed locally**: expect the survivor set to be the six equivalent or unreachable rows above, and the score to rise. Record its survivors here before the push gate is lifted.
