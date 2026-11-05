@@ -458,7 +458,14 @@ describe("review additions (M4 Task 1)", () => {
     expect(r.err).toContain("AMBIGUOUS_ZONE");
   });
 
-  // Finding F1 of docs/reviews/m3-cli-tests.md: --help says the error lists the candidate zones, but the
-  // human line prints only the core message. Tracked in A-85; the fix needs the owner's decision.
-  it.todo("human-mode ambiguous zone lists the candidate zones (A-85)");
+  // Finding F1 of docs/reviews/m3-cli-tests.md, decided as option (a) in A-85: the human line lists the
+  // candidate zones that --json carries in details.options.
+  it("human-mode ambiguous zone lists the candidate zones on the same line (A-85)", async () => {
+    const human = await run(["check"], example(23));
+    const asJson = await run(["check", "--json"], example(23));
+    const options = json(asJson.out).error.details.options as string[];
+    expect(options.length).toBeGreaterThan(1);
+    expect(human.err.trimEnd().split("\n")).toHaveLength(1);
+    expect(human.err).toContain(`Candidates: ${options.join(", ")}`);
+  });
 });

@@ -237,3 +237,24 @@ describe("adjustmentNotes (A-61)", () => {
     expect(notes.every((n) => n.message.endsWith("resolved to 2025-03-09T07:00:00Z."))).toBe(true);
   });
 });
+
+describe("adjustmentNotes chronological order (A-61, mutation review)", () => {
+  // Fall-back day in New York (overlap 05:00Z-06:00Z, earlier occurrence wins, A-07). Instances come out in start
+  // order: the Saturday-night rule (starts first, its END 01:50 resolves to 05:50Z) before the Sunday rule (its START
+  // 01:10 resolves to 05:10Z). Raw boundary order is therefore 05:50Z, 05:10Z; only the sort makes it chronological.
+  const p = {
+    ...party("America/New_York", {
+      saturday: [{ start: "20:00", end: "01:50" }],
+      sunday: [{ start: "01:10", end: "04:00" }],
+    }),
+    partyId: "p",
+  };
+  it("lists the notes by resolved instant, not by instance order", () => {
+    const open = applyBlackouts(expandInstances(p, ms("2025-11-01T00:00:00Z"), ms("2025-11-03T00:00:00Z")), p.blackouts);
+    const notes = adjustmentNotes(p, open, { startMs: ms("2025-11-02T05:00:00Z"), endMs: ms("2025-11-02T06:00:00Z") });
+    expect(notes.map((n) => n.message.match(/resolved to (\S+)\./)?.[1])).toEqual([
+      "2025-11-02T05:10:00Z",
+      "2025-11-02T05:50:00Z",
+    ]);
+  });
+});

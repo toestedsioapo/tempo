@@ -1,0 +1,66 @@
+{
+  "id": "DST-01",
+  "entry": "evaluate",
+  "input": {
+    "request": {
+      "date": "2025-11-02",
+      "start": "05:30",
+      "end": "06:30",
+      "timeZone": "UTC"
+    },
+    "participants": [
+      {
+        "partyId": "alice",
+        "timeZone": "UTC",
+        "weeklyRules": {
+          "sunday": [
+            {
+              "start": "00:00",
+              "end": "24:00"
+            }
+          ]
+        }
+      },
+      {
+        "partyId": "bob",
+        "timeZone": "America/New_York",
+        "weeklyRules": {
+          "sunday": [
+            {
+              "start": "01:30",
+              "end": "05:00"
+            }
+          ]
+        }
+      }
+    ],
+    "options": {
+      "now": "2025-10-25T00:00:00Z"
+    }
+  },
+  "expected": {
+    "ok": true,
+    "decision": "book",
+    "requested": {
+      "start": "2025-11-02T05:30:00Z",
+      "end": "2025-11-02T06:30:00Z",
+      "startUtc": "2025-11-02T05:30:00Z",
+      "endUtc": "2025-11-02T06:30:00Z"
+    },
+    "slots": [
+      {
+        "start": "2025-11-02T05:30:00Z",
+        "end": "2025-11-02T06:30:00Z",
+        "startUtc": "2025-11-02T05:30:00Z",
+        "endUtc": "2025-11-02T06:30:00Z"
+      }
+    ],
+    "reasons": [
+      {
+        "code": "DST_RULE_ADJUSTED",
+        "participantId": "bob",
+        "message": "bob: rule boundary 2025-11-02T01:30 in America/New_York is ambiguous; resolved to 2025-11-02T05:30:00Z."
+      }
+    ]
+  }
+}

@@ -15,12 +15,15 @@
     "test:repo": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage && pnpm -r test:coverage",
+    "test:mutation": "stryker run",
     "gen:schema": "pnpm --filter @marvinliem/tempo-core gen:schema",
     "check:names": "tsx scripts/check-names.ts"
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",
     "@eslint/js": "^10.0.1",
+    "@stryker-mutator/core": "10.1.1",
+    "@stryker-mutator/vitest-runner": "10.1.1",
     "@types/node": "^24.19.2",
     "@vitest/coverage-v8": "^5.0.5",
     "eslint": "^10.14.0",

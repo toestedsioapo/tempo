@@ -146,6 +146,98 @@ describe("repo config", () => {
     expect(cfg).toMatch(/branches:\s*95/);
   });
 
+  describe("QG-02: Stryker mutation testing (A-23, A-90)", () => {
+    const config = (): Record<string, unknown> => {
+      const cfg = readJson("stryker.config.json");
+      if (!isRecord(cfg)) throw new Error("stryker.config.json is not an object");
+      return cfg;
+    };
+
+    it("config mutates core production sources only (A-70 list)", () => {
+      expect(config()["mutate"]).toEqual([
+        "packages/core/src/**/*.ts",
+        "!packages/core/src/**/*.test.ts",
+        "!packages/core/src/index.ts",
+        "!packages/core/src/types.ts",
+      ]);
+    });
+
+    it("config break threshold is 70 with low 80 and high 90, vitest runner loaded explicitly", () => {
+      expect(config()["thresholds"]).toEqual({ high: 90, low: 80, break: 70 });
+      expect(config()["testRunner"]).toBe("vitest");
+      expect(config()["plugins"]).toContain("@stryker-mutator/vitest-runner");
+    });
+
+    it("config caps concurrency at 2 (owner's 7.2 GB laptop; full runs belong on CI)", () => {
+      expect(config()["concurrency"]).toBe(2);
+    });
+
+    it("eslint ignores the Stryker sandbox and reports", () => {
+      const eslint = readText("eslint.config.js");
+      expect(eslint).toContain('".stryker-tmp/**"');
+      expect(eslint).toContain('"reports/**"');
+    });
+
+    it("root has the script and both devDependencies", () => {
+      const pkg = rootPackage();
+      const scripts = pkg["scripts"];
+      expect(isRecord(scripts) ? scripts["test:mutation"] : undefined).toBe("stryker run");
+      const dev = pkg["devDependencies"];
+      expect(isRecord(dev) ? dev["@stryker-mutator/core"] : undefined).toBeTypeOf("string");
+      expect(isRecord(dev) ? dev["@stryker-mutator/vitest-runner"] : undefined).toBeTypeOf("string");
+    });
+
+    it("scratch output is git-ignored", () => {
+      const lines = readText(".gitignore").split(/\r?\n/).map((l) => l.trim());
+      expect(lines).toContain(".stryker-tmp/");
+      expect(lines).toContain("reports/");
+    });
+
+    const mutationJob = (): string => {
+      const nightly = readText(".github/workflows/nightly.yml");
+      const start = nightly.search(/^ {2}mutation:/m);
+      expect(start).toBeGreaterThan(-1);
+      return nightly.slice(start);
+    };
+
+    it("nightly.yml runs sharded mutation jobs on ubuntu and not in the PR matrix", () => {
+      const nightly = readText(".github/workflows/nightly.yml");
+      expect(nightly).toMatch(/^ {2}mutation:/m);
+      expect(nightly).toMatch(/^ {2}mutation-score:/m);
+      expect(nightly).not.toMatch(/secrets\./);
+      expect(readText(".github/workflows/ci.yml")).not.toContain("stryker");
+      expect(readText(".github/workflows/ci.yml")).not.toContain("test:mutation");
+    });
+
+    it("each shard runs 10 property runs, concurrency 4, 120 min, and uploads its own report", () => {
+      const job = mutationJob();
+      expect(job).toMatch(/TEMPO_PROP_RUNS: "10"/);
+      expect(job).toContain("--concurrency 4");
+      expect(job).toContain("timeout-minutes: 120");
+      expect(job).toContain("name: mutation-report-${{ matrix.name }}");
+      expect(job).toContain("fail-fast: false");
+    });
+
+    it("the shards cover every mutated core source file exactly once (A-70 list)", () => {
+      const globbed = [...mutationJob().matchAll(/mutate: "([^"]+)"/g)].flatMap((m) => (m[1] ?? "").split(","));
+      const srcDir = resolve(root, "packages/core/src");
+      const expected = readdirSync(srcDir)
+        .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts") && f !== "index.ts" && f !== "types.ts")
+        .map((f) => `packages/core/src/${f}`)
+        .sort();
+      expect([...globbed].sort()).toEqual(expected);
+    });
+
+    it("the merge job gates the combined score against the config's break threshold", () => {
+      const nightly = readText(".github/workflows/nightly.yml");
+      const merge = nightly.slice(nightly.search(/^ {2}mutation-score:/m));
+      expect(merge).toContain("needs: mutation");
+      expect(merge).toContain("if: always()");
+      expect(merge).toContain("scripts/mutation-merge.ts");
+      expect(merge).toContain("stryker.config.json");
+    });
+  });
+
   describe("CI workflow", () => {
     const ci = (): string => readText(".github/workflows/ci.yml");
     const runLines = (): string[] =>

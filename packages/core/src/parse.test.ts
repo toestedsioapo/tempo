@@ -85,3 +85,31 @@ describe("parseNegotiationRequest", () => {
     expect(parseNegotiationRequest(bad)).toStrictEqual(parseNegotiationRequest(bad));
   });
 });
+
+describe("parseNegotiationRequest on hostile input (D13)", () => {
+  it("a throwing getter becomes a root INVALID_INPUT value with the unreadable-input message", () => {
+    const hostile = {
+      get request(): never {
+        throw new Error("boom");
+      },
+    };
+    expect(parseNegotiationRequest(hostile)).toEqual({
+      ok: false,
+      error: {
+        code: "INVALID_INPUT",
+        message: "Input could not be read.",
+        details: { issues: [{ path: "$", message: "Input could not be read." }] },
+      },
+    });
+  });
+});
+
+describe("parseNegotiationRequest duplicate partyId (message)", () => {
+  it("names the duplicated id in the error message and the first issue", () => {
+    const r = parseNegotiationRequest(withChange(["participants", 1, "partyId"], "alice"));
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error.message).toBe('Duplicate partyId "alice"');
+    expect(r.error.details).toEqual({ issues: [{ path: "participants[1].partyId", message: 'Duplicate partyId "alice"' }] });
+  });
+});
