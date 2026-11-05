@@ -16,7 +16,10 @@ export function renderJson(result: unknown): string {
 
 /** One human-readable error line, without the trailing newline (A-77). */
 export function renderErrorLine(error: ErrorResult["error"]): string {
-  return `tempo: ${error.code}: ${error.message.replace(/\s*[\r\n]+\s*/g, " ")}`;
+  const line = `tempo: ${error.code}: ${error.message.replace(/\s*[\r\n]+\s*/g, " ")}`;
+  const options = error.code === "AMBIGUOUS_ZONE" ? error.details?.["options"] : undefined;
+  // A-85: the candidate zones from details.options, so a human sees the choices --json carries.
+  return Array.isArray(options) && options.length > 0 ? `${line} Candidates: ${options.join(", ")}.` : line;
 }
 
 export type ExplainOk = Extract<ExplainResult, { ok: true }>;
