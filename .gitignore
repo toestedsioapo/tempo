@@ -22,3 +22,6 @@ playwright-report/
 .stryker-tmp/
 reports/
 packages/core/schema/
+stryker.shard.json
+merged-mutation.json
+shard-reports/

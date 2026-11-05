@@ -193,12 +193,48 @@ describe("repo config", () => {
       expect(lines).toContain("reports/");
     });
 
-    it("nightly.yml runs the mutation job on ubuntu and not in the PR matrix", () => {
+    const mutationJob = (): string => {
+      const nightly = readText(".github/workflows/nightly.yml");
+      const start = nightly.search(/^ {2}mutation:/m);
+      expect(start).toBeGreaterThan(-1);
+      return nightly.slice(start);
+    };
+
+    it("nightly.yml runs sharded mutation jobs on ubuntu and not in the PR matrix", () => {
       const nightly = readText(".github/workflows/nightly.yml");
       expect(nightly).toMatch(/^ {2}mutation:/m);
-      expect(nightly).toContain("run: pnpm test:mutation");
+      expect(nightly).toMatch(/^ {2}mutation-score:/m);
       expect(nightly).not.toMatch(/secrets\./);
+      expect(readText(".github/workflows/ci.yml")).not.toContain("stryker");
       expect(readText(".github/workflows/ci.yml")).not.toContain("test:mutation");
+    });
+
+    it("each shard runs 10 property runs, concurrency 4, 120 min, and uploads its own report", () => {
+      const job = mutationJob();
+      expect(job).toMatch(/TEMPO_PROP_RUNS: "10"/);
+      expect(job).toContain("--concurrency 4");
+      expect(job).toContain("timeout-minutes: 120");
+      expect(job).toContain("name: mutation-report-${{ matrix.name }}");
+      expect(job).toContain("fail-fast: false");
+    });
+
+    it("the shards cover every mutated core source file exactly once (A-70 list)", () => {
+      const globbed = [...mutationJob().matchAll(/mutate: "([^"]+)"/g)].flatMap((m) => (m[1] ?? "").split(","));
+      const srcDir = resolve(root, "packages/core/src");
+      const expected = readdirSync(srcDir)
+        .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts") && f !== "index.ts" && f !== "types.ts")
+        .map((f) => `packages/core/src/${f}`)
+        .sort();
+      expect([...globbed].sort()).toEqual(expected);
+    });
+
+    it("the merge job gates the combined score against the config's break threshold", () => {
+      const nightly = readText(".github/workflows/nightly.yml");
+      const merge = nightly.slice(nightly.search(/^ {2}mutation-score:/m));
+      expect(merge).toContain("needs: mutation");
+      expect(merge).toContain("if: always()");
+      expect(merge).toContain("scripts/mutation-merge.ts");
+      expect(merge).toContain("stryker.config.json");
     });
   });
 

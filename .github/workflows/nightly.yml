@@ -25,10 +25,27 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
 
-  # QG-02 / A-90: Stryker mutation testing of packages/core; the score must stay at or above the break threshold in stryker.config.json.
+  # QG-02 / A-90: Stryker mutation testing of packages/core, sharded by source file group. A single unsharded run hit the
+  # 120-minute limit, so each shard mutates one group with a small property run count (the property tests only need to
+  # be fast here; the 5,000-run pass is the `properties` job). Shards do not break on their own score: the
+  # `mutation-score` job merges them and fails when the combined score is below `thresholds.break` in stryker.config.json.
   mutation:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    env:
+      TEMPO_PROP_RUNS: "10"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: dst-zones
+            mutate: "packages/core/src/availability.ts,packages/core/src/dst.ts,packages/core/src/zones.ts"
+          - name: intervals-search
+            mutate: "packages/core/src/intervals.ts,packages/core/src/search.ts"
+          - name: evaluate-suggest
+            mutate: "packages/core/src/evaluate.ts,packages/core/src/explain.ts,packages/core/src/reasons.ts,packages/core/src/suggest.ts"
+          - name: schema-io
+            mutate: "packages/core/src/gates.ts,packages/core/src/guard.ts,packages/core/src/internal-error.ts,packages/core/src/issues.ts,packages/core/src/parse.ts,packages/core/src/render.ts,packages/core/src/schema.ts"
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -37,10 +54,37 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test:mutation
+      - name: Shard config (no per-shard break; the merge job gates the combined score)
+        run: node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync('stryker.config.json','utf8'));c.thresholds.break=null;fs.writeFileSync('stryker.shard.json',JSON.stringify(c))"
+      - run: pnpm exec stryker run stryker.shard.json --mutate "${{ matrix.mutate }}" --concurrency 4
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: mutation-report
+          name: mutation-report-${{ matrix.name }}
           path: reports/mutation/
+          if-no-files-found: warn
+
+  mutation-score:
+    needs: mutation
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: mutation-report-*
+          path: shard-reports
+      - run: pnpm --filter @marvinliem/tempo-core exec tsx scripts/mutation-merge.ts "$GITHUB_WORKSPACE/shard-reports" "$GITHUB_WORKSPACE/stryker.config.json" "$GITHUB_WORKSPACE/merged-mutation.json"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mutation-merged
+          path: merged-mutation.json
           if-no-files-found: warn
