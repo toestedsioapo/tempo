@@ -1,0 +1,30 @@
+{
+  "request": { "date": "2026-07-14", "start": "10:00", "end": "11:00", "timeZone": "Asia/Manila" },
+  "participants": [
+    {
+      "partyId": "alice",
+      "timeZone": "America/New_York",
+      "weeklyRules": {
+        "monday": [{ "start": "09:00", "end": "17:00" }],
+        "tuesday": [{ "start": "09:00", "end": "17:00" }],
+        "wednesday": [{ "start": "09:00", "end": "17:00" }],
+        "thursday": [{ "start": "09:00", "end": "17:00" }],
+        "friday": [{ "start": "09:00", "end": "17:00" }]
+      },
+      "blackouts": []
+    },
+    {
+      "partyId": "bob",
+      "timeZone": "Asia/Manila",
+      "weeklyRules": {
+        "monday": [{ "start": "20:00", "end": "06:00" }],
+        "tuesday": [{ "start": "20:00", "end": "06:00" }],
+        "wednesday": [{ "start": "20:00", "end": "06:00" }],
+        "thursday": [{ "start": "20:00", "end": "06:00" }],
+        "friday": [{ "start": "20:00", "end": "06:00" }]
+      },
+      "blackouts": []
+    }
+  ],
+  "options": { "now": "2026-07-13T00:00:00Z" }
+}
