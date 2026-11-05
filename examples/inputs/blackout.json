@@ -1,0 +1,88 @@
+{
+  "request": {
+    "date": "2025-08-11",
+    "start": "10:00",
+    "end": "11:00",
+    "timeZone": "America/New_York"
+  },
+  "participants": [
+    {
+      "partyId": "alice",
+      "timeZone": "America/New_York",
+      "weeklyRules": {
+        "monday": [
+          {
+            "start": "09:00",
+            "end": "17:00"
+          }
+        ],
+        "tuesday": [
+          {
+            "start": "09:00",
+            "end": "17:00"
+          }
+        ],
+        "wednesday": [
+          {
+            "start": "09:00",
+            "end": "17:00"
+          }
+        ],
+        "thursday": [
+          {
+            "start": "09:00",
+            "end": "17:00"
+          }
+        ],
+        "friday": [
+          {
+            "start": "09:00",
+            "end": "17:00"
+          }
+        ]
+      },
+      "blackouts": [
+        "2025-08-11"
+      ]
+    },
+    {
+      "partyId": "bob",
+      "timeZone": "Europe/London",
+      "weeklyRules": {
+        "monday": [
+          {
+            "start": "09:00",
+            "end": "17:00"
+          }
+        ],
+        "tuesday": [
+          {
+            "start": "09:00",
+            "end": "17:00"
+          }
+        ],
+        "wednesday": [
+          {
+            "start": "09:00",
+            "end": "17:00"
+          }
+        ],
+        "thursday": [
+          {
+            "start": "09:00",
+            "end": "17:00"
+          }
+        ],
+        "friday": [
+          {
+            "start": "09:00",
+            "end": "17:00"
+          }
+        ]
+      }
+    }
+  ],
+  "options": {
+    "now": "2025-08-08T12:00:00Z"
+  }
+}

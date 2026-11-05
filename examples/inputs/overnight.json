@@ -1,0 +1,73 @@
+{
+  "request": {
+    "date": "2025-01-14",
+    "start": "02:00",
+    "end": "03:00",
+    "timeZone": "Asia/Manila"
+  },
+  "participants": [
+    {
+      "partyId": "alice",
+      "timeZone": "America/New_York",
+      "weeklyRules": {
+        "monday": [
+          {
+            "start": "00:00",
+            "end": "24:00"
+          }
+        ],
+        "tuesday": [
+          {
+            "start": "00:00",
+            "end": "24:00"
+          }
+        ],
+        "wednesday": [
+          {
+            "start": "00:00",
+            "end": "24:00"
+          }
+        ],
+        "thursday": [
+          {
+            "start": "00:00",
+            "end": "24:00"
+          }
+        ],
+        "friday": [
+          {
+            "start": "00:00",
+            "end": "24:00"
+          }
+        ],
+        "saturday": [
+          {
+            "start": "00:00",
+            "end": "24:00"
+          }
+        ],
+        "sunday": [
+          {
+            "start": "00:00",
+            "end": "24:00"
+          }
+        ]
+      }
+    },
+    {
+      "partyId": "bob",
+      "timeZone": "Asia/Manila",
+      "weeklyRules": {
+        "monday": [
+          {
+            "start": "20:00",
+            "end": "06:00"
+          }
+        ]
+      }
+    }
+  ],
+  "options": {
+    "now": "2025-01-10T00:00:00Z"
+  }
+}

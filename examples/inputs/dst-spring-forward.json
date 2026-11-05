@@ -1,0 +1,43 @@
+{
+  "request": {
+    "date": "2025-03-30",
+    "start": "04:00",
+    "end": "05:00",
+    "timeZone": "Europe/Berlin"
+  },
+  "participants": [
+    {
+      "partyId": "alice",
+      "timeZone": "UTC",
+      "weeklyRules": {
+        "saturday": [
+          {
+            "start": "00:00",
+            "end": "24:00"
+          }
+        ],
+        "sunday": [
+          {
+            "start": "00:00",
+            "end": "24:00"
+          }
+        ]
+      }
+    },
+    {
+      "partyId": "bob",
+      "timeZone": "Europe/Berlin",
+      "weeklyRules": {
+        "saturday": [
+          {
+            "start": "22:00",
+            "end": "06:00"
+          }
+        ]
+      }
+    }
+  ],
+  "options": {
+    "now": "2025-03-25T00:00:00Z"
+  }
+}

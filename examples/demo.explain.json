@@ -1,0 +1,144 @@
+{
+  "ok": true,
+  "decision": "counter_offer",
+  "reasons": [
+    {
+      "code": "OUTSIDE_AVAILABILITY",
+      "participantId": "alice",
+      "message": "alice: requested interval is not inside any availability interval."
+    },
+    {
+      "code": "OUTSIDE_AVAILABILITY",
+      "participantId": "bob",
+      "message": "bob: requested interval is not inside any availability interval."
+    }
+  ],
+  "requested": {
+    "slot": {
+      "start": "2026-07-14T10:00:00+08:00",
+      "end": "2026-07-14T11:00:00+08:00",
+      "startUtc": "2026-07-14T02:00:00Z",
+      "endUtc": "2026-07-14T03:00:00Z"
+    },
+    "pass": false,
+    "timeGate": "OK",
+    "checks": [
+      {
+        "participant": "alice",
+        "ruleMatched": null,
+        "pass": false,
+        "reasonCode": "OUTSIDE_AVAILABILITY"
+      },
+      {
+        "participant": "bob",
+        "ruleMatched": null,
+        "pass": false,
+        "reasonCode": "OUTSIDE_AVAILABILITY"
+      }
+    ]
+  },
+  "candidates": [
+    {
+      "slot": {
+        "start": "2026-07-14T04:00:00+08:00",
+        "end": "2026-07-14T05:00:00+08:00",
+        "startUtc": "2026-07-13T20:00:00Z",
+        "endUtc": "2026-07-13T21:00:00Z"
+      },
+      "pass": true,
+      "timeGate": "OK",
+      "checks": [
+        {
+          "participant": "alice",
+          "ruleMatched": {
+            "weekday": "monday",
+            "start": "09:00",
+            "end": "17:00",
+            "ownerDate": "2026-07-13"
+          },
+          "pass": true,
+          "reasonCode": "OK"
+        },
+        {
+          "participant": "bob",
+          "ruleMatched": {
+            "weekday": "monday",
+            "start": "20:00",
+            "end": "06:00",
+            "ownerDate": "2026-07-13"
+          },
+          "pass": true,
+          "reasonCode": "OK"
+        }
+      ]
+    },
+    {
+      "slot": {
+        "start": "2026-07-14T03:00:00+08:00",
+        "end": "2026-07-14T04:00:00+08:00",
+        "startUtc": "2026-07-13T19:00:00Z",
+        "endUtc": "2026-07-13T20:00:00Z"
+      },
+      "pass": true,
+      "timeGate": "OK",
+      "checks": [
+        {
+          "participant": "alice",
+          "ruleMatched": {
+            "weekday": "monday",
+            "start": "09:00",
+            "end": "17:00",
+            "ownerDate": "2026-07-13"
+          },
+          "pass": true,
+          "reasonCode": "OK"
+        },
+        {
+          "participant": "bob",
+          "ruleMatched": {
+            "weekday": "monday",
+            "start": "20:00",
+            "end": "06:00",
+            "ownerDate": "2026-07-13"
+          },
+          "pass": true,
+          "reasonCode": "OK"
+        }
+      ]
+    },
+    {
+      "slot": {
+        "start": "2026-07-14T02:00:00+08:00",
+        "end": "2026-07-14T03:00:00+08:00",
+        "startUtc": "2026-07-13T18:00:00Z",
+        "endUtc": "2026-07-13T19:00:00Z"
+      },
+      "pass": true,
+      "timeGate": "OK",
+      "checks": [
+        {
+          "participant": "alice",
+          "ruleMatched": {
+            "weekday": "monday",
+            "start": "09:00",
+            "end": "17:00",
+            "ownerDate": "2026-07-13"
+          },
+          "pass": true,
+          "reasonCode": "OK"
+        },
+        {
+          "participant": "bob",
+          "ruleMatched": {
+            "weekday": "monday",
+            "start": "20:00",
+            "end": "06:00",
+            "ownerDate": "2026-07-13"
+          },
+          "pass": true,
+          "reasonCode": "OK"
+        }
+      ]
+    }
+  ]
+}
