@@ -8,10 +8,12 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./rules.schema.json": "./schema/rules.schema.json"
   },
   "files": [
-    "dist"
+    "dist",
+    "schema"
   ],
   "publishConfig": {
     "access": "public",
@@ -21,11 +23,12 @@
     "node": ">=24"
   },
   "scripts": {
-    "build": "rimraf dist && tsc -p tsconfig.build.json",
+    "build": "rimraf dist && tsc -p tsconfig.build.json && tsx scripts/copy-schema.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.reporter=lcov --coverage.reporter=json-summary",
-    "gen:schema": "tsx scripts/gen-schema.ts"
+    "gen:schema": "tsx scripts/gen-schema.ts",
+    "prepack": "tsx scripts/copy-schema.ts"
   },
   "dependencies": {
     "luxon": "^3.7.2",
