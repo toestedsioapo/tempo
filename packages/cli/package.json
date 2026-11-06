@@ -1,9 +1,26 @@
 {
   "name": "@marvinliem/tempo",
   "version": "0.1.0",
+  "description": "Command-line interface for Tempo: check, suggest and explain meeting times across time zones, from JSON.",
+  "keywords": [
+    "scheduling",
+    "time-zones",
+    "dst",
+    "meeting",
+    "cli"
+  ],
   "type": "module",
   "license": "MIT",
   "author": "Marvin Liemor",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/toestedsioapo/tempo.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/toestedsioapo/tempo/tree/main/packages/cli#readme",
+  "bugs": {
+    "url": "https://github.com/toestedsioapo/tempo/issues"
+  },
   "bin": {
     "tempo": "dist/bin.js"
   },
@@ -13,7 +30,9 @@
       "import": "./dist/main.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "publishConfig": {
     "access": "public",
     "provenance": true

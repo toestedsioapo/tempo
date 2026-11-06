@@ -1,9 +1,27 @@
 {
   "name": "@marvinliem/tempo-core",
   "version": "0.1.0",
+  "description": "Deterministic meeting-time negotiation engine: does a slot fit everyone's working hours, and if not, ranked counter-offers with reasons.",
+  "keywords": [
+    "scheduling",
+    "time-zones",
+    "dst",
+    "meeting",
+    "availability",
+    "working-hours"
+  ],
   "type": "module",
   "license": "MIT",
   "author": "Marvin Liemor",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/toestedsioapo/tempo.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/toestedsioapo/tempo/tree/main/packages/core#readme",
+  "bugs": {
+    "url": "https://github.com/toestedsioapo/tempo/issues"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
