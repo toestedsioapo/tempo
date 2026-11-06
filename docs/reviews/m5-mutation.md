@@ -44,4 +44,15 @@ Three real gaps were closed with tests written against the mutant (each fails on
 
 The plan asks for two full runs with matching survivor sets. A second run of the same workflow is started after these tests land; its result and survivor set are recorded below.
 
-- Run 2: `workflow_dispatch` run 42129787308 (same branch, includes the three new tests). **Result not read yet when M5 was closed locally**: expect the survivor set to be the six equivalent or unreachable rows above, and the score to rise. Record its survivors here before the push gate is lifted.
+- Run 2: `workflow_dispatch` run 42129787308 (same branch, includes the three new tests), 2026-11-05 (UTC), `ubuntu-latest`, Node 24. **Combined 99.30 % (849 detected, 6 undetected of 855), break 70.** The three killed mutants (`intervals.ts:97`, `parse.ts:15`, `schema.ts:94`) are gone from the survivor list; the score rose from 98.95 % to 99.30 %.
+
+| file:line | mutation | status in run 2 | verdict |
+|---|---|---|---|
+| `availability.ts:24:46` | `-` → `+` in the tie-break | Survived | equivalent (same as run 1) |
+| `intervals.ts:103:69` | `-` → `+` in the `mergeSpans` tie-break | Survived | equivalent (same as run 1) |
+| `explain.ts:40:31` | `decide(request, false)` → `true` | Survived | equivalent (same as run 1) |
+| `parse.ts:30:16` | `issues[0]?.message` → `issues[0].message` | Survived | unreachable (same as run 1) |
+| `parse.ts:30:38` | fallback `"Invalid input."` → `""` | NoCoverage | unreachable (same as run 1; run 1 listed it as Survived) |
+| `schema.ts:93:19` | `code: "custom"` → `""` | Survived | equivalent (same as run 1) |
+
+The survivor set is exactly the six equivalent or unreachable rows predicted above, so the two runs agree (Review Focus 2). Only the label of `parse.ts:30:38` differs (Survived vs NoCoverage), which is the same unreachable line. No defect found.
