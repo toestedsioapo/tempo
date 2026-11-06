@@ -112,9 +112,12 @@ describe("repo config", () => {
     const release = readText(".github/workflows/release.yml");
     expect(release).toContain("id-token: write");
     expect(release).toContain("provenance");
-    const tokenPattern = /NPM_TOKEN|NODE_AUTH_TOKEN|_authToken/;
-    expect(release).not.toMatch(tokenPattern);
-    expect(readText(".github/workflows/ci.yml")).not.toMatch(tokenPattern);
+    // A-94: release.yml may reference one secret, NPM_BOOTSTRAP_TOKEN, inside the BOOTSTRAP markers,
+    // until M6 Task 6 removes it; tests/release-workflow.test.ts pins that shape and Guard B. ci.yml
+    // never holds a token.
+    expect(release).not.toMatch(/NPM_TOKEN|_authToken/);
+    expect(release.replace(/# BOOTSTRAP-BEGIN[\s\S]*?# BOOTSTRAP-END/, "")).not.toMatch(/NODE_AUTH_TOKEN|secrets\./);
+    expect(readText(".github/workflows/ci.yml")).not.toMatch(/NPM_TOKEN|NODE_AUTH_TOKEN|_authToken/);
   });
 
   it("coverage: script, provider dependency, no thresholds, ignored output", () => {

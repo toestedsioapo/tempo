@@ -1,20 +1,32 @@
-# Inert by design: manual dispatch only. Publishing uses npm trusted publishing
-# (OIDC) with provenance; no token variables live in this repo (A-38).
+# Manual dispatch only. Dry run by default. Publishing uses npm trusted publishing (OIDC) with
+# provenance. The very first publish uses a one-time bootstrap token (A-94) because npm needs the
+# package to exist before a trusted publisher can be configured; that block is removed in M6 Task 6.
+# Versioning happens in this run (A-95): main keeps 0.0.0 plus one pending changeset.
 name: release
 
 on:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Verify and `publish --dry-run` only. Nothing is published, pushed or tagged."
+        type: boolean
+        default: true
+      confirm:
+        description: "For a real run, type exactly: publish v<version> (for example publish v0.1.0)"
+        type: string
+        default: ""
 
 permissions:
-  contents: write
-  id-token: write
+  contents: read
 
 env:
   NPM_CONFIG_PROVENANCE: true
 
 jobs:
-  release:
+  verify:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -22,6 +34,138 @@ jobs:
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
+      - name: npm must support trusted publishing (>= 11.5.1)
+        run: |
+          v="$(npm --version)"
+          echo "npm $v"
+          if [ "$(printf '%s\n' 11.5.1 "$v" | sort -V | head -n1)" != "11.5.1" ]; then
+            echo "::error::npm $v is older than 11.5.1 (needed for trusted publishing)"
+            exit 1
+          fi
+      - name: Repository must be public (provenance is not generated for private repositories)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          private="$(gh api repos/${{ github.repository }} --jq .private)"
+          echo "private=$private"
+          if [ "$private" != "false" ]; then
+            echo "::error::${{ github.repository }} is private. Make it public before publishing."
+            exit 1
+          fi
+      - run: pnpm install --frozen-lockfile
+      - name: Version both packages from the pending changeset (not committed here)
+        id: version
+        run: |
+          pnpm changeset version
+          echo "version=$(node -p "require('./packages/cli/package.json').version")" >> "$GITHUB_OUTPUT"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm check:names
+      - name: Smoke install both packed tarballs into an empty directory
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/tarballs" "$RUNNER_TEMP/smoke"
+          (cd packages/core && pnpm pack --pack-destination "$RUNNER_TEMP/tarballs")
+          (cd packages/cli && pnpm pack --pack-destination "$RUNNER_TEMP/tarballs")
+          cd "$RUNNER_TEMP/smoke"
+          npm init -y > /dev/null
+          npm install "$RUNNER_TEMP"/tarballs/*.tgz
+          got="$(./node_modules/.bin/tempo --version)"
+          echo "tempo --version -> $got"
+          if [ "$got" != "$VERSION" ]; then
+            echo "::error::tempo --version printed '$got', expected '$VERSION'"
+            exit 1
+          fi
+      - name: npm publish --dry-run for both packages (dry run only)
+        if: ${{ inputs.dry_run }}
+        run: |
+          (cd packages/core && pnpm publish --dry-run --no-git-checks)
+          (cd packages/cli && pnpm publish --dry-run --no-git-checks)
+          {
+            echo "## Dry run: ${{ steps.version.outputs.version }}"
+            echo
+            echo "Packing, the manifests and the tarball contents passed. This does not prove the npm"
+            echo "trusted-publisher (OIDC) setup or the bootstrap token: those are only exercised by a real run."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    needs: verify
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      VERSION: ${{ needs.verify.outputs.version }}
+    steps:
+      - name: Only from main, only with the exact confirmation
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "::error::a real release runs from main, not ${{ github.ref }}"
+            exit 1
+          fi
+          if [ "${{ inputs.confirm }}" != "publish v${VERSION}" ]; then
+            echo "::error::confirm must be exactly: publish v${VERSION}"
+            exit 1
+          fi
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - name: Version both packages from the pending changeset
+        run: |
+          pnpm changeset version
+          got="$(node -p "require('./packages/cli/package.json').version")"
+          if [ "$got" != "$VERSION" ]; then
+            echo "::error::versioned to $got but verify saw $VERSION"
+            exit 1
+          fi
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - run: pnpm changeset publish
+      # BOOTSTRAP-BEGIN
+      - name: Is the one-time bootstrap token set?
+        id: bootstrap
+        env:
+          BOOTSTRAP_SET: ${{ secrets.NPM_BOOTSTRAP_TOKEN != '' }}
+        run: echo "set=$BOOTSTRAP_SET" >> "$GITHUB_OUTPUT"
+      - name: Guard A - the token must be gone once both packages exist
+        if: steps.bootstrap.outputs.set == 'true'
+        run: |
+          if npm view @marvinliem/tempo-core version > /dev/null 2>&1 && npm view @marvinliem/tempo version > /dev/null 2>&1; then
+            echo "::error::both packages already exist on npm but NPM_BOOTSTRAP_TOKEN is still set. Configure the trusted publishers, delete the token and the secret, then remove the bootstrap path (M6 Task 6)."
+            exit 1
+          fi
+      - name: Publish with the bootstrap token (provenance still signed through GitHub OIDC)
+        if: steps.bootstrap.outputs.set == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
+        run: |
+          pnpm changeset publish
+          echo "Published with the one-time bootstrap token (A-94)." >> "$GITHUB_STEP_SUMMARY"
+      # BOOTSTRAP-END
+      - name: Publish with npm trusted publishing (OIDC)
+        if: steps.bootstrap.outputs.set != 'true'
+        run: |
+          pnpm changeset publish
+          echo "Published with npm trusted publishing (OIDC)." >> "$GITHUB_STEP_SUMMARY"
+      - name: Commit the release, tag it and create the GitHub release (only after both packages are out)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore(release): v${VERSION}"
+          git push origin HEAD:main
+          git tag "v${VERSION}"
+          git push origin "v${VERSION}"
+          awk -v h="## ${VERSION}" '$0 == h { on = 1; next } /^## / { on = 0 } on' packages/cli/CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          gh release create "v${VERSION}" --title "v${VERSION}" --notes-file "$RUNNER_TEMP/notes.md"

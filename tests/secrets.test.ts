@@ -27,7 +27,8 @@ const rules: Rule[] = [
   { name: "PEM private key", re: /-----BEGIN [A-Z ]*PRIVATE KEY-----/ },
   {
     name: "workflow NODE_AUTH_TOKEN from secrets",
-    re: /NODE_AUTH_TOKEN\s*:\s*\$\{\{\s*secrets\./,
+    // A-94: the one-time bootstrap secret is the only allowed reference (shape pinned in release-workflow.test.ts).
+    re: /NODE_AUTH_TOKEN\s*:\s*\$\{\{\s*secrets\.(?!NPM_BOOTSTRAP_TOKEN(?![A-Z_]))/,
     only: (p) => /^\.github\/workflows\/.+\.ya?ml$/.test(p),
   },
 ];
