@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const root = resolve(import.meta.dirname, "..");
 const REPO = "https://github.com/toestedsioapo/tempo";
@@ -90,6 +90,11 @@ function pack(dir: string): { files: string[]; manifest: Json } {
 }
 
 describe("packed tarballs", () => {
+  // CI runs `pnpm test` before `pnpm build`, so build here instead of assuming dist/ exists.
+  beforeAll(() => {
+    pnpm(["build"], root);
+  }, 240_000);
+
   const core = manifest("packages/core");
   const coreVersion = String(core["version"]);
 
