@@ -60,7 +60,7 @@ describe("DOC-03: README commands are copy-pasteable", () => {
       .map((l) => l.trim())
       .filter((l) => l !== "" && !l.startsWith("#")),
   );
-  const ALLOWED = /^(tempo |node packages\/cli\/dist\/bin\.js |pnpm |npm |Get-Content |cmd \/c |\$OutputEncoding)/;
+  const ALLOWED = /^(tempo |node packages\/cli\/dist\/bin\.js |pnpm |npm |npx |Get-Content |cmd \/c |\$OutputEncoding)/;
 
   it("has commands to check", () => {
     expect(commands.length).toBeGreaterThan(5);

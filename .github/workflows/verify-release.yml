@@ -1,0 +1,58 @@
+# Post-release check (M6): what a stranger gets from the registry, on Linux and Windows.
+# Manual dispatch only. Read-only: no secrets, no tokens, nothing is published.
+name: verify-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Published version to verify"
+        type: string
+        default: "0.1.0"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Both packages are on the registry at this version
+        run: |
+          test "$(npm view @marvinliem/tempo-core@${VERSION} version)" = "${VERSION}"
+          test "$(npm view @marvinliem/tempo@${VERSION} version)" = "${VERSION}"
+      - name: npx runs the published CLI from an empty directory
+        run: |
+          mkdir "$RUNNER_TEMP/npx" && cd "$RUNNER_TEMP/npx"
+          got="$(npx --yes @marvinliem/tempo@${VERSION} --version)"
+          echo "tempo --version -> $got"
+          test "$got" = "${VERSION}"
+      - name: Install from the registry into an empty directory
+        run: |
+          mkdir "$RUNNER_TEMP/consumer" && cd "$RUNNER_TEMP/consumer"
+          npm init -y > /dev/null
+          npm install @marvinliem/tempo@${VERSION}
+      - name: The README demo reproduces with the published package
+        run: |
+          cd "$RUNNER_TEMP/consumer"
+          cp "$GITHUB_WORKSPACE/examples/demo.json" demo.json
+          cp "$GITHUB_WORKSPACE/examples/demo.explain.json" expected.json
+          npx --no-install tempo explain demo.json --json > actual.json
+          node -e "const fs=require('fs');const a=JSON.parse(fs.readFileSync('actual.json','utf8'));const e=JSON.parse(fs.readFileSync('expected.json','utf8'));if(JSON.stringify(a)!==JSON.stringify(e)){console.error('demo output differs from examples/demo.explain.json');process.exit(1)}console.log('README demo output matches')"
+      - name: Registry signatures and provenance attestations verify
+        run: |
+          cd "$RUNNER_TEMP/consumer"
+          npm audit signatures

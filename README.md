@@ -31,6 +31,12 @@ npm install -g @marvinliem/tempo
 pnpm add @marvinliem/tempo-core
 ```
 
+Try it without installing (works once `v0.1.0` is published):
+
+```bash
+npx @marvinliem/tempo@0.1.0 --version
+```
+
 Requires Node `>=24`. From source (this repo is a pnpm 12 workspace): `pnpm install`, `pnpm build`.
 
 ## Quick start from a clone
