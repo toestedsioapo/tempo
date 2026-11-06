@@ -198,6 +198,8 @@ Six milestones over about six weeks, ending in the **first release, `v0.1.0`** o
 - [ ] `v0.1.0` tag and release exist.
 - [ ] Downstream note for Deskhand MCP: the public API is `evaluate`, `suggest`, `explain`, the fixtures and the schemas; breaking changes follow the `0.x` rule in ARCHITECTURE §6.
 
+**Downstream note (Deskhand MCP, Deskbench, Deskflow).** The public API of `@marvinliem/tempo-core` is `evaluate`, `suggest` and `explain`, the Zod schemas (`NegotiationRequestSchema`, `NegotiationResultSchema`, `ExplainResultSchema`), the generated `@marvinliem/tempo-core/rules.schema.json`, and the append-only fixtures `@marvinliem/tempo-core/fixtures/*`. The CLI exit codes and `--json` shape are public API too. While on `0.x`, a breaking change bumps the minor version and needs a CHANGELOG entry and a migration note (ARCHITECTURE §6); pin `@marvinliem/tempo-core` to an exact `0.1.x` or `~0.1.0` range until `1.0.0`.
+
 ---
 
 ## Risks and gates
