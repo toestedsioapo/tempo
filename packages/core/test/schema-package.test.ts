@@ -1,7 +1,8 @@
 import { execFileSync, execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const coreDir = resolve(import.meta.dirname, "..");
 const repoRoot = resolve(coreDir, "../..");
@@ -12,13 +13,19 @@ const pkg = JSON.parse(readFileSync(join(coreDir, "package.json"), "utf8")) as {
 };
 
 describe("rules.schema.json ships in @marvinliem/tempo-core (A-82)", () => {
+  // A private output dir: other test files copy into packages/core/schema at the same time.
+  const out = mkdtempSync(join(tmpdir(), "tempo-schema-"));
+  afterAll(() => rmSync(out, { recursive: true, force: true }));
+
   beforeAll(() => {
-    // The same command `build` and `prepack` run.
+    // The same script `build` and `prepack` run, redirected.
+    execFileSync(process.execPath, ["--import", "tsx", "scripts/copy-schema.ts", "--out", out], { cwd: coreDir });
+    // The pack and packaged-schema tests below need the real copy to exist (identical content: no rewrite).
     execFileSync(process.execPath, ["--import", "tsx", "scripts/copy-schema.ts"], { cwd: coreDir });
   });
 
   it("the build copy is byte-identical to the committed schema", () => {
-    const copy = readFileSync(join(coreDir, "schema", "rules.schema.json"));
+    const copy = readFileSync(join(out, "rules.schema.json"));
     const root = readFileSync(join(repoRoot, "schema", "rules.schema.json"));
     expect(copy.equals(root)).toBe(true);
   });

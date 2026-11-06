@@ -1,6 +1,6 @@
 {
   "name": "@marvinliem/tempo-core",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "Deterministic meeting-time negotiation engine: does a slot fit everyone's working hours, and if not, ranked counter-offers with reasons.",
   "keywords": [
     "scheduling",

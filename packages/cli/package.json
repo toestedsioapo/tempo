@@ -1,6 +1,6 @@
 {
   "name": "@marvinliem/tempo",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "Command-line interface for Tempo: check, suggest and explain meeting times across time zones, from JSON.",
   "keywords": [
     "scheduling",
