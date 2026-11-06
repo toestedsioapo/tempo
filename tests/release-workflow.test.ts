@@ -92,15 +92,15 @@ describe("verify job", () => {
     return i;
   };
 
-  it("runs the gates in order, after versioning (A-95)", () => {
+  it("runs the repo gates on the committed state, then versions, then builds (A-95)", () => {
     const order = [
       "pnpm install --frozen-lockfile",
-      "pnpm changeset version",
       "pnpm typecheck",
       "pnpm lint",
       "pnpm test",
-      "pnpm build",
       "pnpm check:names",
+      "pnpm changeset version",
+      "pnpm build",
     ].map(index);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
     // The frozen install must still work after the bump, so it runs once more.

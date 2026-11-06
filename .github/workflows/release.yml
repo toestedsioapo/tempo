@@ -53,17 +53,19 @@ jobs:
             exit 1
           fi
       - run: pnpm install --frozen-lockfile
+      # The repo tests describe the committed (pre-release) state, so they run before versioning:
+      # `changeset version` removes the pending changeset and creates the CHANGELOGs.
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm check:names
       - name: Version both packages from the pending changeset (not committed here)
         id: version
         run: |
           pnpm changeset version
           echo "version=$(node -p "require('./packages/cli/package.json').version")" >> "$GITHUB_OUTPUT"
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm lint
-      - run: pnpm test
       - run: pnpm build
-      - run: pnpm check:names
       - name: Smoke install both packed tarballs into an empty directory
         env:
           VERSION: ${{ steps.version.outputs.version }}
