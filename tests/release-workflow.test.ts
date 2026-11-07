@@ -1,6 +1,7 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { parseDocument } from "yaml";
 
 const root = resolve(import.meta.dirname, "..");
 const read = (rel: string): string => readFileSync(resolve(root, rel), "utf8").replaceAll("\r\n", "\n");
@@ -28,6 +29,18 @@ export function tokenViolations(text: string): string[] {
   if (/\bsecrets\./.test(text)) out.push("a secret is referenced");
   return out;
 }
+
+describe("workflow files are valid YAML (GitHub rejects the whole file otherwise)", () => {
+  // A step name like `Pack (pnpm pack resolves workspace: ranges)` has a `: ` in a plain scalar: invalid YAML, so
+  // GitHub ran no jobs at all ("workflow file issue"). The regex tests below cannot see that, a parser can.
+  const dir = resolve(root, ".github/workflows");
+  for (const file of readdirSync(dir).filter((f) => /\.ya?ml$/.test(f))) {
+    it(file, () => {
+      const doc = parseDocument(readFileSync(resolve(dir, file), "utf8"));
+      expect(doc.errors.map((e) => e.message)).toEqual([]);
+    });
+  }
+});
 
 describe("release.yml trigger, inputs and permissions", () => {
   it("is manual dispatch only", () => {
