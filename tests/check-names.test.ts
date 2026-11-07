@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkNames, classifyStatus } from "../scripts/check-names.js";
+import { checkNames, classifyStatus, namesOk } from "../scripts/check-names.js";
 
 function fakeFetch(status: number, urls: string[] = []): typeof fetch {
   return ((input: string | URL | Request) => {
@@ -41,5 +41,44 @@ describe("checkNames", () => {
   it("keeps input order", async () => {
     const result = await checkNames(["b", "a", "c"], fakeFetch(404));
     expect(result.map((r) => r.name)).toEqual(["b", "a", "c"]);
+  });
+});
+
+describe("checkNames with an owner (M6 Task 6: our own published names are not a conflict)", () => {
+  function fakeRegistry(status: number, maintainers: string[]): typeof fetch {
+    return (() =>
+      Promise.resolve({
+        status,
+        json: () => Promise.resolve({ maintainers: maintainers.map((name) => ({ name })) }),
+      } as Response)) as typeof fetch;
+  }
+
+  it("a taken name whose maintainers include the owner is owned", async () => {
+    expect(await checkNames(["a"], fakeRegistry(200, ["x", "marvinliem"]), "marvinliem")).toEqual([
+      { name: "a", status: "owned" },
+    ]);
+  });
+
+  it("a taken name owned by someone else stays taken", async () => {
+    expect(await checkNames(["a"], fakeRegistry(200, ["someone-else"]), "marvinliem")).toEqual([
+      { name: "a", status: "taken" },
+    ]);
+  });
+
+  it("an unreadable body on a taken name stays taken (never guess ownership)", async () => {
+    const broken = (() =>
+      Promise.resolve({ status: 200, json: () => Promise.reject(new Error("bad json")) } as Response)) as typeof fetch;
+    expect(await checkNames(["a"], broken, "marvinliem")).toEqual([{ name: "a", status: "taken" }]);
+  });
+
+  it("without an owner a taken name is taken, and available stays available", async () => {
+    expect(await checkNames(["a"], fakeRegistry(200, ["marvinliem"]))).toEqual([{ name: "a", status: "taken" }]);
+    expect(await checkNames(["a"], fakeRegistry(404, []), "marvinliem")).toEqual([{ name: "a", status: "available" }]);
+  });
+
+  it("passes when every name is available or owned, fails on taken or unknown", () => {
+    expect(namesOk([{ name: "a", status: "available" }, { name: "b", status: "owned" }])).toBe(true);
+    expect(namesOk([{ name: "a", status: "owned" }, { name: "b", status: "taken" }])).toBe(false);
+    expect(namesOk([{ name: "a", status: "unknown" }])).toBe(false);
   });
 });
