@@ -136,7 +136,7 @@ jobs:
       # publishConfig.provenance, and the changesets publisher calls it without --provenance. So pack with
       # pnpm (it resolves `workspace:` ranges) and hand each tarball to npm itself: npm >= 11.5.1 does the OIDC
       # trusted-publishing exchange and signs the provenance. Core first, then cli (cli depends on core).
-      - name: Pack both packages (pnpm pack resolves workspace: ranges)
+      - name: Pack both packages (pnpm pack resolves workspace ranges)
         run: |
           mkdir -p "$RUNNER_TEMP/tarballs"
           (cd packages/core && pnpm pack --pack-destination "$RUNNER_TEMP/tarballs")
