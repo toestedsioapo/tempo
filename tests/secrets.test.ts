@@ -27,8 +27,8 @@ const rules: Rule[] = [
   { name: "PEM private key", re: /-----BEGIN [A-Z ]*PRIVATE KEY-----/ },
   {
     name: "workflow NODE_AUTH_TOKEN from secrets",
-    // A-94: the one-time bootstrap secret is the only allowed reference (shape pinned in release-workflow.test.ts).
-    re: /NODE_AUTH_TOKEN\s*:\s*\$\{\{\s*secrets\.(?!NPM_BOOTSTRAP_TOKEN(?![A-Z_]))/,
+    // M6 Task 6: no token reference at all, not even the retired bootstrap secret.
+    re: /NODE_AUTH_TOKEN\s*:\s*\$\{\{\s*secrets\./,
     only: (p) => /^\.github\/workflows\/.+\.ya?ml$/.test(p),
   },
 ];
@@ -64,6 +64,10 @@ describe("findSecrets (synthetic samples built from fragments)", () => {
     expect(one("k.txt", `${"-----BEGIN"} RSA ${"PRIVATE"} KEY-----`)).toEqual(["PEM private key"]));
   it("flags NODE_AUTH_TOKEN from secrets in a workflow", () =>
     expect(one(".github/workflows/release.yml", `        NODE_AUTH_TOKEN: \${{ ${"secrets"}.NPM }}`)).toEqual([
+      "workflow NODE_AUTH_TOKEN from secrets",
+    ]));
+  it("flags the retired bootstrap secret too", () =>
+    expect(one(".github/workflows/release.yml", `        NODE_AUTH_TOKEN: \${{ ${"secrets"}.NPM_BOOTSTRAP_TOKEN }}`)).toEqual([
       "workflow NODE_AUTH_TOKEN from secrets",
     ]));
   it("does not flag the two safe .npmrc lines", () =>

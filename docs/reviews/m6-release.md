@@ -35,3 +35,11 @@ The exact tarball file lists are asserted by `tests/release-metadata.test.ts` (c
 | trusted publishers | cannot exist yet (npm needs the packages first); configured after the release (Owner setup 5) |
 
 **Gate #2 (irreversible).** No non-dry run is dispatched until the owner says "publish". Publishing makes `0.1.0` of both packages permanent on npm. The real run is `dry_run=false`, `confirm="publish v0.1.0"`, approved on the `release` environment.
+
+## Task 6: remove the bootstrap path, publish through OIDC with provenance
+
+**Why `0.1.0` has no provenance.** Run 42247256283 (the real `0.1.0` publish) ran `pnpm changeset publish`. The changesets publisher invokes `pnpm publish --json --access public --tag latest --no-git-checks` for a pnpm project: no `--provenance` flag. The log shows no provenance or transparency-log output, and the npm attestations API returns 404 for both `@0.1.0`. The "1 verified attestation" `npm audit signatures` reported belonged to a dependency, not to our packages. `NPM_CONFIG_PROVENANCE=true` and `publishConfig.provenance=true` were both set and made no difference, so pnpm 12 does not honor them on that path (inferred from the log and the API, not reproduced locally; A-96).
+
+**Change.** `release.yml` no longer has the bootstrap block, Guard A, `NODE_AUTH_TOKEN` or any secret. It packs both packages with `pnpm pack` and publishes each tarball with `npm publish "$tarball" --provenance --access public`, core before cli, skipping a version already on npm. `tests/release-workflow.test.ts` pins that command, bans `changeset publish`, and bans any token or secret (Guard B now passes because the markers are gone).
+
+**What is untested until the next release.** The OIDC-only path (trusted publisher for owner `toestedsioapo`, repo `tempo`, workflow `release.yml`, environment `release`, plus npm-signed provenance) has never run. The first real run is `0.1.1`. No rehearsal can prove it, and none is faked: a dry run does not exercise OIDC.

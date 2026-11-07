@@ -1,6 +1,6 @@
 # Manual dispatch only. Dry run by default. Publishing uses npm trusted publishing (OIDC) with
-# provenance. The very first publish uses a one-time bootstrap token (A-94) because npm needs the
-# package to exist before a trusted publisher can be configured; that block is removed in M6 Task 6.
+# provenance, through `npm publish <tarball> --provenance`. There is no token anywhere (the one-time bootstrap
+# token of A-94 is gone, M6 Task 6).
 # Versioning happens in this run (A-95): main keeps 0.0.0 plus one pending changeset.
 name: release
 
@@ -132,32 +132,30 @@ jobs:
           fi
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      # BOOTSTRAP-BEGIN
-      - name: Is the one-time bootstrap token set?
-        id: bootstrap
-        env:
-          BOOTSTRAP_SET: ${{ secrets.NPM_BOOTSTRAP_TOKEN != '' }}
-        run: echo "set=$BOOTSTRAP_SET" >> "$GITHUB_OUTPUT"
-      - name: Guard A - the token must be gone once both packages exist
-        if: steps.bootstrap.outputs.set == 'true'
+      # v0.1.0 went out without provenance: pnpm 12 does not honor NPM_CONFIG_PROVENANCE or
+      # publishConfig.provenance, and the changesets publisher calls it without --provenance. So pack with
+      # pnpm (it resolves `workspace:` ranges) and hand each tarball to npm itself: npm >= 11.5.1 does the OIDC
+      # trusted-publishing exchange and signs the provenance. Core first, then cli (cli depends on core).
+      - name: Pack both packages (pnpm pack resolves workspace: ranges)
         run: |
-          if npm view @marvinliem/tempo-core version > /dev/null 2>&1 && npm view @marvinliem/tempo version > /dev/null 2>&1; then
-            echo "::error::both packages already exist on npm but NPM_BOOTSTRAP_TOKEN is still set. Configure the trusted publishers, delete the token and the secret, then remove the bootstrap path (M6 Task 6)."
-            exit 1
-          fi
-      - name: Publish with the bootstrap token (provenance still signed through GitHub OIDC)
-        if: steps.bootstrap.outputs.set == 'true'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
+          mkdir -p "$RUNNER_TEMP/tarballs"
+          (cd packages/core && pnpm pack --pack-destination "$RUNNER_TEMP/tarballs")
+          (cd packages/cli && pnpm pack --pack-destination "$RUNNER_TEMP/tarballs")
+          ls -l "$RUNNER_TEMP/tarballs"
+      - name: Publish core, then cli, with npm trusted publishing (OIDC) and provenance
         run: |
-          pnpm changeset publish
-          echo "Published with the one-time bootstrap token (A-94)." >> "$GITHUB_STEP_SUMMARY"
-      # BOOTSTRAP-END
-      - name: Publish with npm trusted publishing (OIDC)
-        if: steps.bootstrap.outputs.set != 'true'
-        run: |
-          pnpm changeset publish
-          echo "Published with npm trusted publishing (OIDC)." >> "$GITHUB_STEP_SUMMARY"
+          publish_tarball() {
+            name="$1"
+            tarball="$2"
+            if npm view "${name}@${VERSION}" version > /dev/null 2>&1; then
+              echo "${name}@${VERSION} is already on npm, skipping"
+              return 0
+            fi
+            npm publish "$tarball" --provenance --access public
+          }
+          publish_tarball @marvinliem/tempo-core "$RUNNER_TEMP/tarballs/marvinliem-tempo-core-${VERSION}.tgz"
+          publish_tarball @marvinliem/tempo "$RUNNER_TEMP/tarballs/marvinliem-tempo-${VERSION}.tgz"
+          echo "Published with npm trusted publishing (OIDC) and --provenance." >> "$GITHUB_STEP_SUMMARY"
       - name: Commit the release, tag it and create the GitHub release (only after both packages are out)
         env:
           GH_TOKEN: ${{ github.token }}
