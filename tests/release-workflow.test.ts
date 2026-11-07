@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -15,38 +15,19 @@ export function jobBlock(text: string, name: string): string {
   return next === null ? rest : rest.slice(0, next.index);
 }
 
-const BEGIN = "# BOOTSTRAP-BEGIN";
-const END = "# BOOTSTRAP-END";
-
 /**
- * A-94 shape rules for the bootstrap token path. Returns what is wrong, empty when the file is fine.
- * `released` is true once the release run has committed packages/cli/CHANGELOG.md (Guard B).
+ * M6 Task 6 (A-94 superseded): release.yml publishes through npm trusted publishing (OIDC) only. Returns what is
+ * wrong with `text`, empty when the file is fine. Applies from now on, whether or not a release exists.
  */
-export function bootstrapViolations(text: string, released: boolean): string[] {
+export function tokenViolations(text: string): string[] {
   const out: string[] = [];
-  const b = text.indexOf(BEGIN);
-  const e = text.indexOf(END);
-  const hasMarkers = b >= 0 || e >= 0;
-  if (released && (hasMarkers || /NPM_BOOTSTRAP_TOKEN/.test(text) || /NODE_AUTH_TOKEN/.test(text))) {
-    out.push("the bootstrap path is still present after the first release (remove it, M6 Task 6)");
-  }
+  if (/BOOTSTRAP-(BEGIN|END)/.test(text)) out.push("BOOTSTRAP marker present");
+  if (/NPM_BOOTSTRAP_TOKEN/.test(text)) out.push("NPM_BOOTSTRAP_TOKEN referenced");
+  if (/NODE_AUTH_TOKEN/.test(text)) out.push("NODE_AUTH_TOKEN present");
   if (/NPM_TOKEN|_authToken/.test(text)) out.push("NPM_TOKEN or _authToken present");
-  if (hasMarkers && !(b >= 0 && e > b)) out.push("unbalanced BOOTSTRAP markers");
-  const inside = b >= 0 && e > b ? text.slice(b, e) : "";
-  const outside = b >= 0 && e > b ? text.slice(0, b) + text.slice(e) : text;
-  if (/NODE_AUTH_TOKEN|NPM_BOOTSTRAP_TOKEN/.test(outside)) out.push("bootstrap token referenced outside the markers");
-  for (const line of inside.split("\n")) {
-    if (/NODE_AUTH_TOKEN/.test(line) && !/^\s+NODE_AUTH_TOKEN: \$\{\{ secrets\.NPM_BOOTSTRAP_TOKEN \}\}\s*$/.test(line)) {
-      out.push(`unexpected NODE_AUTH_TOKEN line: ${line.trim()}`);
-    }
-    for (const m of line.matchAll(/secrets\.(\w+)/g)) {
-      if (m[1] !== "NPM_BOOTSTRAP_TOKEN") out.push(`unexpected secret ${m[1] ?? ""}`);
-    }
-  }
+  if (/\bsecrets\./.test(text)) out.push("a secret is referenced");
   return out;
 }
-
-const released = existsSync(resolve(root, "packages/cli/CHANGELOG.md"));
 
 describe("release.yml trigger, inputs and permissions", () => {
   it("is manual dispatch only", () => {
@@ -156,7 +137,7 @@ describe("publish job", () => {
     const order = [
       "pnpm changeset version",
       "pnpm build",
-      "pnpm changeset publish",
+      "npm publish",
       /git commit .*chore\(release\)/,
       /git tag /,
       "gh release create",
@@ -168,46 +149,58 @@ describe("publish job", () => {
 
   it("reports which publish path ran", () => {
     expect(publish).toContain("GITHUB_STEP_SUMMARY");
+    expect(publish).toContain("npm trusted publishing (OIDC)");
   });
 });
 
-describe("A-94: bootstrap token path", () => {
-  it("release.yml has exactly the allowed shape", () => {
-    expect(bootstrapViolations(release, released)).toEqual([]);
+describe("OIDC-only publish (M6 Task 6, A-94 superseded)", () => {
+  const publish = jobBlock(release, "publish");
+
+  it("holds no bootstrap path, no token and no secret", () => {
+    expect(tokenViolations(release)).toEqual([]);
   });
 
-  it("has an OIDC publish step outside the markers", () => {
-    const b = release.indexOf(BEGIN);
-    const e = release.indexOf(END);
-    const outside = b >= 0 ? release.slice(0, b) + release.slice(e) : release;
-    expect(outside).toMatch(/pnpm changeset publish/);
+  it("never publishes with changeset publish, and pnpm publish only as a dry run", () => {
+    expect(release).not.toMatch(/changeset publish/);
+    for (const line of release.split("\n")) {
+      if (/pnpm publish/.test(line)) expect(line, line).toContain("--dry-run");
+    }
   });
 
-  it.skipIf(released)("Guard A: fails when both packages exist on npm and the secret is still set", () => {
-    const block = release.slice(release.indexOf(BEGIN), release.indexOf(END));
-    expect(block).toContain("npm view @marvinliem/tempo-core version");
-    expect(block).toContain("npm view @marvinliem/tempo version");
-    expect(block).toMatch(/exit 1/);
+  it("packs both packages with pnpm pack (resolves workspace: ranges) before publishing", () => {
+    expect(publish).toMatch(/\(cd packages\/core && pnpm pack --pack-destination "\$RUNNER_TEMP\/tarballs"\)/);
+    expect(publish).toMatch(/\(cd packages\/cli && pnpm pack --pack-destination "\$RUNNER_TEMP\/tarballs"\)/);
+    expect(publish.indexOf("pnpm pack")).toBeLessThan(publish.indexOf("npm publish"));
   });
 
-  describe("Guard B and the shape rules on synthetic text", () => {
-    const good = `jobs:\n  publish:\n    steps:\n${BEGIN}\n      - run: x\n        env:\n          NODE_AUTH_TOKEN: \${{ secrets.NPM_BOOTSTRAP_TOKEN }}\n${END}\n`;
-    it("passes before the release", () => expect(bootstrapViolations(good, false)).toEqual([]));
-    it("fails once released while the block is present", () => {
-      expect(bootstrapViolations(good, true)).toEqual([
-        "the bootstrap path is still present after the first release (remove it, M6 Task 6)",
+  it("publishes each tarball with npm publish --provenance --access public, core before cli (pnpm 12 ignores provenance config)", () => {
+    const cmds = publish.match(/^\s*npm publish .*$/gm) ?? [];
+    expect(cmds.map((c) => c.trim())).toEqual(['npm publish "$tarball" --provenance --access public']);
+    const calls = [...publish.matchAll(/^\s*publish_tarball (\S+) (\S+)$/gm)].map((m) => m.slice(1, 3));
+    expect(calls).toEqual([
+      ["@marvinliem/tempo-core", '"$RUNNER_TEMP/tarballs/marvinliem-tempo-core-${VERSION}.tgz"'],
+      ["@marvinliem/tempo", '"$RUNNER_TEMP/tarballs/marvinliem-tempo-${VERSION}.tgz"'],
+    ]);
+  });
+
+  it("skips a version already on the registry, so a re-run after a partial publish is safe (Review Focus 5)", () => {
+    expect(publish).toMatch(/npm view "\$\{name\}@\$\{VERSION\}" version/);
+  });
+
+  describe("tokenViolations on synthetic text", () => {
+    it("passes a token-free workflow", () => expect(tokenViolations("jobs: {}\n")).toEqual([]));
+    it("rejects the bootstrap markers and token", () => {
+      const text = "# BOOTSTRAP-BEGIN\n  NODE_AUTH_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}\n# BOOTSTRAP-END\n";
+      expect(tokenViolations(text)).toEqual([
+        "BOOTSTRAP marker present",
+        "NPM_BOOTSTRAP_TOKEN referenced",
+        "NODE_AUTH_TOKEN present",
+        "a secret is referenced",
       ]);
     });
-    it("passes once released and removed", () => expect(bootstrapViolations("jobs: {}\n", true)).toEqual([]));
-    it("rejects the token outside the markers", () => {
-      expect(bootstrapViolations(good + "      NODE_AUTH_TOKEN: x\n", false)).toContain("bootstrap token referenced outside the markers");
-    });
-    it("rejects any other secret or token line inside the block", () => {
-      const other = good.replace("secrets.NPM_BOOTSTRAP_TOKEN", "secrets.OTHER");
-      expect(bootstrapViolations(other, false).length).toBeGreaterThan(0);
-    });
     it("rejects NPM_TOKEN and _authToken", () => {
-      expect(bootstrapViolations(good + "NPM_TOKEN\n", false)).toContain("NPM_TOKEN or _authToken present");
+      expect(tokenViolations("NPM_TOKEN\n")).toContain("NPM_TOKEN or _authToken present");
+      expect(tokenViolations("_authToken\n")).toContain("NPM_TOKEN or _authToken present");
     });
   });
 });
